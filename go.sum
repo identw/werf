@@ -192,6 +192,10 @@ github.com/flant/helm v0.0.0-20200217100637-b18c566416d9 h1:GeY1frTHUMr3Zi3wYP+Y
 github.com/flant/helm v0.0.0-20200217100637-b18c566416d9/go.mod h1:kVR/UJ6TuuVNuyUbJ2WDnIiP6Is/ikNMwM+2jq2+jSc=
 github.com/flant/helm v0.0.0-20200218151203-82216b82bf08 h1:eN1rA5Mh5tThaY8hPZpex79nXkaFU8hdYaohvxnJLUA=
 github.com/flant/helm v0.0.0-20200218151203-82216b82bf08/go.mod h1:rBQrZQK7AGqzCP1Ve/pE1irL0A9WGQySaDXhpZ6AIJM=
+github.com/flant/helm v0.0.0-20200219121324-93546abae733 h1:ZtnR7X18lQ8TiqlchahgBvFZh0jTZzjFnhjet2GonBU=
+github.com/flant/helm v0.0.0-20200219121324-93546abae733/go.mod h1:kVR/UJ6TuuVNuyUbJ2WDnIiP6Is/ikNMwM+2jq2+jSc=
+github.com/flant/helm v0.0.0-20200219145345-5e72bee1a52f h1:+H25gjytqdLPH23+EKNOA5C19HoRfDLDjlskJfvkwWY=
+github.com/flant/helm v0.0.0-20200219145345-5e72bee1a52f/go.mod h1:rBQrZQK7AGqzCP1Ve/pE1irL0A9WGQySaDXhpZ6AIJM=
 github.com/flant/kubedog v0.3.5-0.20200213111410-09bddc160684 h1:qlP25ub/MTaZufGerOv01ruZJZTDj0K6YZFlpr5sd0E=
 github.com/flant/kubedog v0.3.5-0.20200213111410-09bddc160684/go.mod h1:cyOV/syD4pkYuqdFuUs/GMkUMGOoNa0MA51eP84nvg4=
 github.com/flant/kubedog v0.3.5-0.20200218150314-7a6b5c93818e h1:rFmWXb+bRLSbp3R3siXslcIE9RGcrgR5JZsk8POD8qo=

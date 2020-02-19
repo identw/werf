@@ -167,7 +167,7 @@ replace k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.16.7
 
 replace k8s.io/sample-controller => k8s.io/sample-controller v0.16.7
 
-replace k8s.io/helm => github.com/flant/helm v0.0.0-20200218151203-82216b82bf08
+replace k8s.io/helm => github.com/flant/helm v0.0.0-20200219145345-5e72bee1a52f
 
 replace golang.org/x/sys => golang.org/x/sys v0.0.0-20190813064441-fde4db37ae7a
 
