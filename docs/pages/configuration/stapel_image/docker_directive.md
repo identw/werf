@@ -24,19 +24,19 @@ summary: |
     <span class="na">HEALTHCHECK</span><span class="pi">:</span> <span class="s">&lt;healthcheck&gt;</span></code></pre></div></div>
 ---
 
-[Dockerfile instructions](https://docs.docker.com/engine/reference/builder/) can be divided into two groups: build-time instructions and other instructions that effect on an image manifest. Build-time instructions do not make sense in a werf build process. Therefore, werf supports only following instructions:
+[Dockerfile instructions](https://docs.docker.com/engine/reference/builder/) can be divided into two groups: build-time instructions and instructions that affect an image manifest. Build-time instructions do not make sense in a werf build process. Since werf builder uses custom syntax to describe the assembly process, only the following Dockerfile instructions from the second group are supported:
 
-* `USER` to set the user and the group to use when running the image (read more [here](https://docs.docker.com/engine/reference/builder/#user)).
-* `WORKDIR` to set the working directory (read more [here](https://docs.docker.com/engine/reference/builder/#workdir)).
-* `VOLUME` to add mount point (read more [here](https://docs.docker.com/engine/reference/builder/#volume)).
-* `ENV` to set the environment variable (read more [here](https://docs.docker.com/engine/reference/builder/#env)).
-* `LABEL` to add metadata to an image (read more [here](https://docs.docker.com/engine/reference/builder/#label)).
-* `EXPOSE` to inform Docker that the container listens on the specified network ports at runtime (read more [here](https://docs.docker.com/engine/reference/builder/#expose))
-* `ENTRYPOINT` to configure a container that will run as an executable (read more [here](https://docs.docker.com/engine/reference/builder/#entrypoint)).
-* `CMD` to provide default arguments for the `ENTRYPOINT` to configure a container that will run as an executable (read more [here](https://docs.docker.com/engine/reference/builder/#cmd)).
-* `HEALTHCHECK` to tell Docker how to test a container to check that it is still working (read more [here](https://docs.docker.com/engine/reference/builder/#healthcheck))
+* `USER` sets the user and the group to use when running the image (read [more](https://docs.docker.com/engine/reference/builder/#user)).
+* `WORKDIR` sets the working directory (read [more](https://docs.docker.com/engine/reference/builder/#workdir)).
+* `VOLUME` adds a mount point (read [more](https://docs.docker.com/engine/reference/builder/#volume)).
+* `ENV` sets the environment variable (read [more](https://docs.docker.com/engine/reference/builder/#env)).
+* `LABEL` adds metadata to an image (read [more](https://docs.docker.com/engine/reference/builder/#label)).
+* `EXPOSE` informs Docker that the container listens on the specified network ports at runtime (read [more](https://docs.docker.com/engine/reference/builder/#expose))
+* `ENTRYPOINT` helps to configure a container that will run as an executable (read [more](https://docs.docker.com/engine/reference/builder/#entrypoint)).
+* `CMD` provides default arguments for the `ENTRYPOINT` to configure a container that will run as an executable (read [more](https://docs.docker.com/engine/reference/builder/#cmd)).
+* `HEALTHCHECK` tells Docker how to test a container to check that it is still working (read [more](https://docs.docker.com/engine/reference/builder/#healthcheck))
 
-These instructions can be specified in the `docker` config directive.
+You can specify the above instructions in the `docker` config directive.
 
 Here is an example of using docker instructions:
 
@@ -50,9 +50,9 @@ docker:
     LC_ALL: en_US.UTF-8
 ```
 
-Defined docker instructions are applied on the last stage called `docker_instructions`.
-Thus, instructions do not affect other stages, ones just will be applied to a built image.
+The specified docker instructions are applied during the last stage called `docker_instructions`.
+Therefore, instructions do not affect other stages - they only append data to the assembled image.
 
-If need to use special environment variables in build-time of your application image, such as `TERM` environment, you should use a [base image]({{ site.baseurl }}/documentation/configuration/stapel_image/base_image.html) with these variables.
+If you require some specific environment variables when building your application image (such as a `TERM` environment), then you should use the [base image]({{ site.baseurl }}/documentation/configuration/stapel_image/base_image.html) in which these variables are set.
 
-> Tip: you can also implement exporting environment variables right in [_user stage_]({{ site.baseurl }}/documentation/configuration/stapel_image/assembly_instructions.html#what-is-user-stages) instructions
+> Tip: you can also export environment variables at the [_user stage_]({{ site.baseurl }}/documentation/configuration/stapel_image/assembly_instructions.html#what-is-user-stages).
