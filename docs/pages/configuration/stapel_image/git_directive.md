@@ -60,18 +60,18 @@ summary: |
 
 ## What is git mapping?
 
-***Git mapping*** describes a file or directory from the git repository that should be added to the image by a specific path. The repository may be a local one, hosted in the directory that contains the config, or a remote one, and in this case, the configuration of the _git mapping_ contains the repository address and the version (branch, tag or commit hash).
+***Git mapping*** describes a file or a directory from the git repository that should be added to the image by a specific path. The repository may be a local one, hosted in the directory that contains the config, or a remote one, and in this case, the configuration of the _git mapping_ contains address of the repository and version of the code (branch, tag or commit hash).
 
-werf adds the files from the repository to the image by using the full transfer of files with git archive or by applying patches between commits.
-The full transfer is used for the initial adding of files. The subsequent builds use applying patches to reflect changes in a git repository. The algorithm behind the full transfer and applying patches is reviewed the [More details: git_archive...](#more-details-gitarchive-gitcache-gitlatestpatch) section.
+werf copies files from the repository to the image using the full transfer of files via git archive or by applying patches between commits.
+The full transfer is used for the initial addition of files. For subsequent builds, werf applies patches to reflect changes in a git repository. The algorithm behind the full transfer and patching is described in detail in the [More details: git_archive...](#more-details-gitarchive-gitcache-gitlatestpatch) section.
 
-The configuration of the _git mapping_ supports filtering files, and you can use the set of _git mappings_ to create virtually any resulting file structure in the image. Also, you can specify the owner and the group of files in the _git mapping_ configuration — no subsequent `chown` required.
+The configuration of the _git mapping_ supports file filtering. You can use a set of _git mappings_ to create virtually any file structure in the image. Also, you can specify owner and group properties of files in the _git mapping_ configuration — no subsequent `chown` is required.
 
-werf has support for submodules. werf detects if files specified with _git mapping_ configuration are contained in submodules and does the very best it could to handle the changes of files in submodules correctly.
+werf supports git submodules. If werf detects that some part of _git mapping_ is a submodule, it does its best to handle the changes in submodules correctly.
 
-> All project's submodules locked to a specific commit, so all collaborators receive the same content. Therefore, werf **does not initialize, update submodules** and just uses these commits
+> All submodules of a project are associated with a specific commit, so all collaborators working with the submodule repository receive the same content. Thus, werf **does not initialize or update submodules** but just uses the corresponding commits
 
-An example of a _git mapping_ configuration for adding source files from a local repository from the `/src` into the `/app` directory, and remote phantomjs source files to `/src/phantomjs`:
+Here is an example of a _git mapping_ configuration. It allows you to add source files from the `/src` directory in a local repository to the `/app` directory, and remote phantomjs source files to `/src/phantomjs`:
 
 ```yaml
 git:
@@ -82,39 +82,39 @@ git:
   to: /src/phantomjs
 ```
 
-## Motivation for git mappings
+## Why use git mappings?
 
 The main idea is to bring git history into the build process.
 
 ### Patching instead of copying
 
-Most commits in the real application repository relate to updating the code of the application itself. In this case, if the compilation is not required, assembling a new image shall be nothing more than applying patches to the files in the previous image.
+Most commits in the real application repository are about updating the code of the application itself. In this case, if the compilation is not required, assembling a new image boils down to applying patches to the files in the previous one.
 
 ### Remote repositories
 
-Building an application image may depend on source files in other repositories. werf provides the ability to add files from remote repositories too. werf can detect changes in local repositories and remote repositories.
+Building an application image may depend on source files in other repositories. werf can add files from remote repositories as well as to detect changes in local and remote repositories.
 
 ## Syntax of a git mapping
 
 The _git mapping_ configuration for a local repository has the following parameters:
 
-- `add` — the path to a directory or file whose contents must be copied to the image. The path is specified relative to the repository root, and the path is absolute (i.e., it must start with `/`). This parameter is optional, the content of the entire repository is transferred by default, i.e., an empty `add` is equal to `add: /`;
-- `to` — the path in the image, where the content specified with `add` will be copied;
+- `add` — the path to a directory or a file whose contents are to be copied to the image. The path relates to the repository root and is absolute (i.e., it must start with `/`). This parameter is optional, contents of the entire repository are transferred by default, i.e., an empty `add` equals to `add: /`;
+- `to` — the path in the image where the content specified with `add` will be copied;
 - `owner` — the name or uid of the owner of the copied files;
 - `group` — the name or gid of the group of the owner;
-- `excludePaths` — a set of masks to ignore the files or directories during recursive copying. Paths in masks are specified relative to add;
-- `includePaths` — a set of masks to include the files or directories during recursive copying. Paths in masks are specified relative to add;
-- `stageDependencies` — a set of masks to detect changes that lead to the user stages rebuilds. This is reviewed in detail in the [Running assembly instructions]({{ site.baseurl }}/documentation/configuration/stapel_image/assembly_instructions.html) reference.
+- `excludePaths` — a set of masks to exlude files or directories during recursive copying. Paths in masks are specified relative to add;
+- `includePaths` — a set of masks to include files or directories during recursive copying. Paths in masks are specified relative to add;
+- `stageDependencies` — a set of file and folder masks to define the dependence of user-stage rebuilds on their changes. The detailed description available in the [Running assembly instructions]({{ site.baseurl }}/documentation/configuration/stapel_image/assembly_instructions.html).
 
 The _git mapping_ configuration for a remote repository has some additional parameters:
 - `url` — remote repository address;
-- `branch`, `tag`, `commit` — a name of branch, tag or commit hash that will be used. If these parameters are not specified, the master branch is used.
+- `branch`, `tag`, `commit` — name of a branch, tag or commit hash that will be used. If these parameters are not specified, the master branch is used.
 
-## Uses of git mappings
+## Using git mappings
 
-### Copying of directories
+### Copying directories
 
-The `add` parameter specifies a path in a repository, from which all files must be recursively retrieved and added to the image with the `to` path; if the parameter is not specified, then the default path — `/` is used, i.e., the entire repository is transferred.
+The `add` parameter specifies the path in a repository, starting with which all files must be recursively retrieved and added to the image at the `to` path; if the parameter is not specified, then the default path (`/`) is used, i.e., the entire repository is transferred.
 For example:
 
 ```yaml
@@ -123,11 +123,11 @@ git:
   to: /app
 ```
 
-This is the simple _git mapping_ configuration that adds the entire content from the repository to the `/app` directory in the image.
+This is the basic _git mapping_ configuration that adds the entire contents of the repository to the `/app` directory in the image.
 
 <div class="tabs">
-  <a href="javascript:void(0)" class="tabs__btn btn__example1 active" onclick="openTab(event, 'btn__example1', 'tab__example1', 'git-mapping-01-source')">Git repo structure</a>
-  <a href="javascript:void(0)" class="tabs__btn btn__example1" onclick="openTab(event, 'btn__example1', 'tab__example1', 'git-mapping-01-dest')">Result image structure</a>
+  <a href="javascript:void(0)" class="tabs__btn btn__example1 active" onclick="openTab(event, 'btn__example1', 'tab__example1', 'git-mapping-01-source')">Structure of a Git repo</a>
+  <a href="javascript:void(0)" class="tabs__btn btn__example1" onclick="openTab(event, 'btn__example1', 'tab__example1', 'git-mapping-01-dest')">Structure of the resulting image</a>
 </div>
 <div id="git-mapping-01-source" class="tabs__content tab__example1 active">
   <img src="{{ site.baseurl }}/images/build/git_mapping_01.png" alt="git repository files tree" />
@@ -136,7 +136,7 @@ This is the simple _git mapping_ configuration that adds the entire content from
   <img src="{{ site.baseurl }}/images/build/git_mapping_02.png" alt="image files tree" />
 </div>
 
-Multiple _git mappings_ may be specified:
+You can specify multiple _git mappings_:
 
 ```yaml
 git:
@@ -147,8 +147,8 @@ git:
 ```
 
 <div class="tabs">
-  <a href="javascript:void(0)" class="tabs__btn btn__example2 active" onclick="openTab(event, 'btn__example2', 'tab__example2', 'git-mapping-02-source')">Git repo structure</a>
-  <a href="javascript:void(0)" class="tabs__btn btn__example2" onclick="openTab(event, 'btn__example2', 'tab__example2', 'git-mapping-02-dest')">Result image structure</a>
+  <a href="javascript:void(0)" class="tabs__btn btn__example2 active" onclick="openTab(event, 'btn__example2', 'tab__example2', 'git-mapping-02-source')">Structure of a Git repo</a>
+  <a href="javascript:void(0)" class="tabs__btn btn__example2" onclick="openTab(event, 'btn__example2', 'tab__example2', 'git-mapping-02-dest')">Structure of the resulting image</a>
 </div>
 <div id="git-mapping-02-source" class="tabs__content tab__example2 active">
   <img src="{{ site.baseurl }}/images/build/git_mapping_03.png" alt="git repository files tree" />
@@ -158,7 +158,7 @@ git:
 </div>
 
 
-It should be noted, that _git mapping_ configuration doesn't specify a directory to be transferred like `cp -r /src /app`. `add` parameter specifies a directory content that will be recursively transferred from the repository. That is if the `/assets` directory needs to be transferred to the `/app/assets` directory, then the name **assets** should be written twice, or `includePaths` [filter](#using-filters) can be used.
+It should be noted that _git mapping_ configuration doesn't specify the directory to be transferred (like `cp -r /src /app`). The `add` parameter specifies the contents of a directory that will be recursively copied from the repository. That is, if the `/assets` directory needs to be transferred to the `/app/assets` directory, then the name **assets** should be written twice, or, as an option, you can use an `includePaths` [filter](#using-filters).
 
 ```yaml
 git:
@@ -175,11 +175,11 @@ git:
   includePaths: assets
 ```
 
-> werf has no convention for trailing `/` that is available in rsync, i.e. `add: /src` and `add: /src/` are the same
+> werf has no convention for trailing `/` that is available in rsync, i.e., `add: /src` and `add: /src/` are the same
 
 ### Changing an owner
 
-The _git mapping_ configuration provides parameters `owner` and `group`. These are the names or numerical ids of the owner and group used for all files and directories transferred to the image.
+The _git mapping_ configuration provides `owner` and `group` parameters. These are the names or numerical ids of the owner and group used for all files and directories transferred to the image.
 
 ```yaml
 git:
@@ -190,9 +190,9 @@ git:
 
 ![index.php owned by www-data user and group]({{ site.baseurl }}/images/build/git_mapping_05.png)
 
-If only the `owner` parameter is specified, the group for files is the same as the primary group of the specified user.
+If only the `owner` parameter is specified, then the group for files is presumed to be the same as the primary group of the specified user.
 
-If `owner` or `group` value is a string, then the specified user or group must be added to the system by the time of the full transfer of files, otherwise, build ends with an error.
+If an `owner` or a `group` parameter has a string value, then the specified user or a group must exist in the system before the transfer of files is complete (you have to add them in advance if necessary, e.g., at the beforeInstall stage), otherwise, an error will occur during the build process.
 
 ```yaml
 git:
