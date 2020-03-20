@@ -205,9 +205,9 @@ git:
 
 ### Using filters
 
-`includePaths` and `excludePaths` parameters are used when processing the file list. These are the sets of masks that can be used to include and exclude files and directories from/to the list of files that will be transferred to the image. Simply stated, the `excludePaths` filter works as follows: masks are applied to each file found in `add` path. If at least one mask matches, then the file is ignored; if no matches are found, then the file gets added to the image. `includePaths` works the opposite way: if at least one mask is a match, the file gets added to the image.
+The`includePaths` and `excludePaths` parameters are used for composing the list of files to add to the image. These parameters include sets of file masks. You can use them to include/exclude files and directories to/from the list of files, that will be added to the image. The `excludePaths` filter works as follows: file masks are applied to each file found in the `add` path. If there is at least one match, then the file is ignored; if no matches are found, then the file is added to the image. The `includePaths` works the opposite way: if there is at least one match, the file is added to the image.
 
-_Git mapping_ configuration can contain both filters. In this case, a file is added to the image if the path matches with one of `includePaths` masks and not match with all `excludePaths` masks.
+The _git mapping_ configuration may contain both filters. In this case, a file is added to the image if its path matches one of `includePaths` masks and does not match any of `excludePaths` masks.
 
 For example:
 
@@ -223,28 +223,28 @@ git:
   - '**/*-test.*'
 ```
 
-This is the _git mapping_ configuration that adds `.php` and `.js` files from `/src` except files with suffixes that starts with `-dev.` or `-test.`.
+The above _git mapping_ configuration adds `.php` and `.js` files from the `/src` path except for files with `-dev.` or `-test.` suffixes.
 
-To determine whether the file matches the mask the following algorithm is applied:
- - take for the check the next absolute file path inside the repository;
- - compare this path with configured include or exclude path mask or plain path:
+When determining whether a file matches a mask, the following algorithm is used:
+ - determine the absolute path to the file in the repository;
+ - compare it with the masks defined in includePaths/excludePaths or the specific path:
    - the path in `add` is concatenated with the mask or raw path from include or exclude config directive;
-   - two paths are compared with the use of glob patterns: if file matches the mask, then it will be included (for `includePaths`) or excluded (for `excludePaths`), the algorithm is ended.
- - compare this path with configured include or exclude path mask or plain path with additional pattern:
+   - two paths are compared using glob patterns: if the file matches the mask, then it will be included (for `includePaths`) or excluded (for `excludePaths`), the algorithm is ended.
+ - compare this path with configured include/exclude path mask or the specific path with an additional pattern:
    - the path in `add` is concatenated with the mask or raw path from include or exclude config directive and concatenated with additional suffix pattern `**/*`;
-   - two paths are compared with the use of glob patterns: if file matches the mask, then it will be included (for `includePaths`) or excluded (for `excludePaths`), the algorithm is ended.
+   - two paths are compared with the use of glob patterns: if the file matches the mask, then it will be included (for `includePaths`) or excluded (for `excludePaths`); the algorithm is complete.
 
-> The second step with adding `**/*` template is for convenience: the most frequent use case of a _git mapping_ with filters is to configure recursive copying for the directory. Adding `**/*` makes enough to specify the directory name only, and its entire content matches the filter
+> The step that involves the addition of the `**/*` pattern is here just for convenience: the common use case of a _git mapping_ with filters involves setting up recursive copying of the directory. Thanks to adding the `**/*` pattern, you can specify just the name of a directory so that its entire contents would match the filter
 
-Masks may contain the following patterns:
+Mask may contain the following patterns:
 
 - `*` — matches any file. This pattern includes `.` and exclude `/`
 - `**` — matches directories recursively or files expansively
-- `?` — matches any one character. Equivalent to /.{1}/ in regexp
-- `[set]` — matches any one character in the set. Behaves exactly like character sets in regexp, including set negation ([^a-z])
+- `?` — matches any single character. Equivalent to /.{1}/ in regexp
+- `[set]` — matches any single character in the set. This pattern behaves exactly like character sets in regexp, including set negation ([^a-z])
 - `\` — escapes the next metacharacter
 
-Mask that starts with `*` or `**` patterns should be escaped with quotes in `werf.yaml` file:
+Mask that starts with `*` or `**` patterns should be escaped with quotes in the `werf.yaml` file:
  - `"*.rb"` — with double quotes
 - `'**/*'` — with single quotes
 
@@ -266,7 +266,7 @@ includePaths:
 - module1
 ```
 
-`includePaths` filter can be used to copy one file without renaming:
+The `includePaths` filter can be used to copy any file without renaming:
 ```yaml
 git:
 - add: /src
