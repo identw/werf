@@ -276,7 +276,7 @@ git:
 
 ### Target paths overlapping
 
-If multiple _git mappings_ are added, you should remember those intersecting paths defined in `to` may result in the inability to add files to the image. For example:
+It is important to note that if there are multiple _git mappings_, the paths defined in the `to` field may interfere with each other, resulting in the inability to add files to the image. For example:
 
 ```yaml
 git:
@@ -286,9 +286,9 @@ git:
   to: /app/assets
 ```
 
-When processing a config, werf calculates the possible intersections among all _git mappings_ concerning `includePaths` and `excludePaths` filters. If an intersection is detected, then werf can resolve simple conflicts with implicitly adding `excludePaths` into the _git mapping_. In other cases, the build ends with an error. However, implicit `excludePaths` filter can have undesirable effects, so try to avoid conflicts of intersecting paths between configured git mappings.
+When processing a config, werf finds all the possible intersections among _git mappings_ concerning `includePaths` and `excludePaths` filters. If an intersection is detected, werf tries to resolve uncomplicated conflicts by implicitly adding `excludePaths` into the _git mapping_. In complicated cases, the build ends with an error. Please note that the implicit `excludePaths` filter can have undesirable effects, so try to avoid conflicts of intersecting paths between git mappings.
 
-Implicit `excludePaths` example:
+Below is an example of implicit `excludePaths`:
 
 ```yaml
 git:
@@ -302,11 +302,11 @@ git:
 
 ## Working with remote repositories
 
-werf may use remote repositories as file sources. For this purpose, the _git mapping_ configuration contains an `url` parameter where you should specify the repository address. werf supports `https` and `git+ssh` protocols.
+werf can use remote repositories as a source of files. For this purpose, the _git mapping_ configuration has an `url` field with the repository address. werf supports `https` and `git+ssh` protocols.
 
 ### https
 
-The syntax for https protocol is:
+The syntax for the https protocol is as follows:
 
 {% raw %}
 ```yaml
@@ -315,9 +315,9 @@ git:
 ```
 {% endraw %}
 
-`https` access may require login and password.
+You may need a login and password to access over `https`.
 
-For example, login and password from GitLab CI variables:
+Here is an example of accessing the repository from the GitLab CI pipeline using environmental variables:
 
 {% raw %}
 ```yaml
