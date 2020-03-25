@@ -106,24 +106,6 @@ func (phase *BuildPhase) BeforeImageStages(img *Image) error {
 }
 
 func (phase *BuildPhase) AfterImageStages(img *Image) error {
-	if shouldCleanup, err := phase.Conveyor.StagesStorage.ShouldCleanupLocalImage(&container_runtime.DockerImage{Image: phase.PrevBuiltStage.GetImage()}); err == nil && shouldCleanup {
-		if err := logboek.Default.LogProcess(
-			fmt.Sprintf("Cleaning up stage %s local image", phase.PrevBuiltStage.LogDetailedName()),
-			logboek.LevelLogProcessOptions{Style: logboek.HighlightStyle()},
-			func() error {
-				logboek.Info.LogF("Image name: %s\n", phase.PrevBuiltStage.GetImage().Name())
-				if err := phase.Conveyor.StagesStorage.CleanupLocalImage(&container_runtime.DockerImage{Image: phase.PrevBuiltStage.GetImage()}); err != nil {
-					return fmt.Errorf("unable to cleanup stage %s local image %s for stages storage %s: %s", phase.PrevBuiltStage.LogDetailedName(), phase.PrevBuiltStage.GetImage().Name(), phase.Conveyor.StagesStorage.String(), err)
-				}
-				return nil
-			},
-		); err != nil {
-			return err
-		}
-	} else if err != nil {
-		return err
-	}
-
 	img.SetLastNonEmptyStage(phase.PrevNonEmptyStage)
 
 	stagesSig, err := calculateSignature("imageStages", "", phase.PrevNonEmptyStage, phase.Conveyor)
@@ -502,59 +484,13 @@ func (phase *BuildPhase) atomicStoreStageCache(stageName, stageSig string, image
 	)
 }
 
-// FIXME: parallel builds should work together with common stages
 func (phase *BuildPhase) fetchBaseImageForStage(img *Image, stg stage.Interface) error {
 	if stg.Name() == "from" {
 		if err := img.FetchBaseImage(phase.Conveyor); err != nil {
 			return fmt.Errorf("unable to fetch base image %s for stage %s: %s", img.GetBaseImage().Name(), stg.LogDetailedName(), err)
 		}
 	} else {
-		if shouldFetch, err := phase.Conveyor.StagesStorage.ShouldFetchImage(&container_runtime.DockerImage{Image: phase.PrevBuiltStage.GetImage()}); err == nil && shouldFetch {
-			if err := logboek.Default.LogProcess(
-				fmt.Sprintf("Fetching stage %s from stages storage", phase.PrevBuiltStage.LogDetailedName()),
-				logboek.LevelLogProcessOptions{Style: logboek.HighlightStyle()},
-				func() error {
-					logboek.Info.LogF("Image name: %s\n", phase.PrevBuiltStage.GetImage().Name())
-					if err := phase.Conveyor.StagesStorage.FetchImage(&container_runtime.DockerImage{Image: phase.PrevBuiltStage.GetImage()}); err != nil {
-						return fmt.Errorf("unable to fetch stage %s image %s from stages storage %s: %s", phase.PrevBuiltStage.LogDetailedName(), phase.PrevBuiltStage.GetImage().Name(), phase.Conveyor.StagesStorage.String(), err)
-					}
-					return nil
-				},
-			); err != nil {
-				return err
-			}
-		} else if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// FIXME: parallel builds should work together with common stages
-func (phase *BuildPhase) cleanupBaseImageForStage(img *Image, stg stage.Interface) error {
-	if stg.Name() == "from" {
-		if err := img.CleanupBaseImage(phase.Conveyor); err != nil {
-			return fmt.Errorf("unable to cleanup base image %s for stage %s: %s", img.GetBaseImage().Name(), stg.LogDetailedName(), err)
-		}
-	} else {
-		if shouldCleanup, err := phase.Conveyor.StagesStorage.ShouldCleanupLocalImage(&container_runtime.DockerImage{Image: phase.PrevBuiltStage.GetImage()}); err == nil && shouldCleanup {
-			if err := logboek.Default.LogProcess(
-				fmt.Sprintf("Cleaning up stage %s local image", phase.PrevBuiltStage.LogDetailedName()),
-				logboek.LevelLogProcessOptions{Style: logboek.HighlightStyle()},
-				func() error {
-					logboek.Info.LogF("Image name: %s\n", phase.PrevBuiltStage.GetImage().Name())
-					if err := phase.Conveyor.StagesStorage.CleanupLocalImage(&container_runtime.DockerImage{Image: phase.PrevBuiltStage.GetImage()}); err != nil {
-						return fmt.Errorf("unable to cleanup stage %s local image %s for stages storage %s: %s", phase.PrevBuiltStage.LogDetailedName(), phase.PrevBuiltStage.GetImage().Name(), phase.Conveyor.StagesStorage.String(), err)
-					}
-					return nil
-				},
-			); err != nil {
-				return err
-			}
-		} else if err != nil {
-			return err
-		}
+		return fetchStage(phase.Conveyor.StagesStorage, phase.PrevBuiltStage)
 	}
 
 	return nil
@@ -616,6 +552,10 @@ func (phase *BuildPhase) prepareStage(img *Image, stg stage.Interface) error {
 
 func (phase *BuildPhase) buildStage(img *Image, stg stage.Interface) error {
 	if stg.GetImage().GetStagesStorageImageInfo() != nil {
+		if err := phase.Conveyor.ContainerRuntime.RefreshImageObject(&container_runtime.DockerImage{Image: stg.GetImage()}); err != nil {
+			return fmt.Errorf("unable to refresh cached image %s state from local container runtime: %s", stg.GetImage().Name(), err)
+		}
+
 		logboek.Default.LogFHighlight("Use cache image for %s\n", stg.LogDetailedName())
 
 		logImageInfo(stg.GetImage(), phase.PrevNonEmptyStageImageSize, true)
@@ -661,10 +601,6 @@ func (phase *BuildPhase) buildStage(img *Image, stg stage.Interface) error {
 			return phase.atomicBuildStageImage(img, stg)
 		},
 	); err != nil {
-		return err
-	}
-
-	if err := phase.cleanupBaseImageForStage(img, stg); err != nil {
 		return err
 	}
 
@@ -740,12 +676,12 @@ func (phase *BuildPhase) atomicBuildStageImage(img *Image, stg stage.Interface) 
 
 	phase.Conveyor.SetStageImage(stageImageObj)
 
-	if err := logboek.Info.LogProcess(
-		fmt.Sprintf("Store stage %s signature %s image %s into stages storage", stageImage.Name(), stg.GetSignature(), stageImage.Name()),
+	if err := logboek.Default.LogProcess(
+		fmt.Sprintf("Store into stages storage"),
 		logboek.LevelLogProcessOptions{},
 		func() error {
-			if err := phase.Conveyor.StagesStorage.StoreImage(&container_runtime.DockerImage{stageImage}); err != nil {
-				return fmt.Errorf("unable to store stage %s signature %s image %s into stages storage %s: %s", stg.Name(), stg.GetSignature(), stageImage.Name(), phase.Conveyor.StagesStorage.String(), err)
+			if err := phase.Conveyor.StagesStorage.StoreImage(&container_runtime.DockerImage{Image: stageImage}); err != nil {
+				return fmt.Errorf("unable to store stage %s signature %s image %s into stages storage %s: %s", stg.LogDetailedName(), stg.GetSignature(), stageImage.Name(), phase.Conveyor.StagesStorage.String(), err)
 			}
 			return nil
 		},
