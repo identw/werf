@@ -38,10 +38,6 @@ func NewLocalDockerServerStagesStorage(localDockerServerRuntime *container_runti
 	return &LocalDockerServerStagesStorage{LocalDockerServerRuntime: localDockerServerRuntime}
 }
 
-func (storage *LocalDockerServerStagesStorage) Validate() error {
-	return nil
-}
-
 func (storage *LocalDockerServerStagesStorage) ShouldFetchImage(img container_runtime.Image) (bool, error) {
 	return false, nil
 }

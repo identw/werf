@@ -22,13 +22,13 @@ type DockerRegistry interface {
 	SelectRepoImageList(reference string, f func(*image.Info) bool) ([]*image.Info, error)
 	DeleteRepoImage(repoImageList ...*image.Info) error
 
-	Validate() error
 	String() string
 }
 
 type DockerRegistryOptions struct {
 	InsecureRegistry      bool
 	SkipTlsVerifyRegistry bool
+	DockerHubToken        string
 	DockerHubUsername     string
 	DockerHubPassword     string
 	GitHubToken           string
@@ -46,6 +46,7 @@ func (o *DockerRegistryOptions) dockerHubOptions() dockerHubOptions {
 	return dockerHubOptions{
 		defaultImplementationOptions: o.defaultOptions(),
 		dockerHubCredentials: dockerHubCredentials{
+			token:    o.DockerHubToken,
 			username: o.DockerHubUsername,
 			password: o.DockerHubPassword,
 		},
