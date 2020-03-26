@@ -88,6 +88,14 @@ type BaseStage struct {
 	containerWerfDir string
 	configMounts     []*config.Mount
 	projectName      string
+
+	PrevStage         Interface
+	NextStage         Interface
+	PrevBuiltStage    Interface
+	PrevNonEmptyStage Interface
+	NextNonEmptyStage Interface
+	PrevImage         container_runtime.ImageInterface
+	PrevBuiltImage    container_runtime.ImageInterface
 }
 
 func (s *BaseStage) LogDetailedName() string {
@@ -442,4 +450,60 @@ func mergeMounts(a, b map[string][]string) map[string][]string {
 	}
 
 	return res
+}
+
+func (s *BaseStage) GetPrevStage() Interface {
+	return s.PrevStage
+}
+
+func (s *BaseStage) GetPrevBuiltStage() Interface {
+	return s.PrevBuiltStage
+}
+
+func (s *BaseStage) GetPrevNonEmptyStage() Interface {
+	return s.PrevNonEmptyStage
+}
+
+func (s *BaseStage) GetPrevImage() container_runtime.ImageInterface {
+	return s.PrevImage
+}
+
+func (s *BaseStage) GetPrevBuiltImage() container_runtime.ImageInterface {
+	return s.PrevBuiltImage
+}
+
+func (s *BaseStage) GetNextStage() Interface {
+	return s.NextStage
+}
+
+func (s *BaseStage) GetNextNonEmptyStage() Interface {
+	return s.NextNonEmptyStage
+}
+
+func (s *BaseStage) SetPrevStage(stage Interface) {
+	s.PrevStage = stage
+}
+
+func (s *BaseStage) SetPrevBuiltStage(stage Interface) {
+	s.PrevBuiltStage = stage
+}
+
+func (s *BaseStage) SetPrevNonEmptyStage(stage Interface) {
+	s.PrevNonEmptyStage = stage
+}
+
+func (s *BaseStage) SetPrevImage(image container_runtime.ImageInterface) {
+	s.PrevImage = image
+}
+
+func (s *BaseStage) SetPrevBuiltImage(image container_runtime.ImageInterface) {
+	s.PrevBuiltImage = image
+}
+
+func (s *BaseStage) SetNextStage(stage Interface) {
+	s.NextStage = stage
+}
+
+func (s *BaseStage) SetNextNonEmptyStage(stage Interface) {
+	s.NextNonEmptyStage = stage
 }

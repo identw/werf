@@ -54,8 +54,8 @@ func (phase *PublishImagesPhase) BeforeImageStages(img *Image) error {
 	return nil
 }
 
-func (phase *PublishImagesPhase) OnImageStage(img *Image, stg stage.Interface) (bool, error) {
-	return true, nil
+func (phase *PublishImagesPhase) OnImageStage(img *Image, stg stage.Interface) error {
+	return nil
 }
 
 func (phase *PublishImagesPhase) AfterImageStages(img *Image) error {

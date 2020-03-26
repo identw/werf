@@ -30,4 +30,20 @@ type Interface interface {
 	GetGitMappings() []*GitMapping
 
 	SelectCacheImage(images []*image.Info) (*image.Info, error)
+
+	GetPrevStage() Interface
+	GetPrevBuiltStage() Interface
+	GetPrevNonEmptyStage() Interface
+	GetPrevImage() container_runtime.ImageInterface
+	GetPrevBuiltImage() container_runtime.ImageInterface
+	GetNextStage() Interface
+	GetNextNonEmptyStage() Interface
+
+	SetPrevStage(stage Interface)
+	SetPrevBuiltStage(stage Interface)
+	SetPrevNonEmptyStage(stage Interface)
+	SetPrevImage(image container_runtime.ImageInterface)
+	SetPrevBuiltImage(image container_runtime.ImageInterface)
+	SetNextStage(stage Interface)
+	SetNextNonEmptyStage(stage Interface)
 }

@@ -101,6 +101,7 @@ require (
 	gopkg.in/src-d/go-billy.v4 v4.3.2
 	gopkg.in/src-d/go-git.v4 v4.13.1
 	gopkg.in/yaml.v2 v2.2.8
+	gopkg.in/yaml.v3 v3.0.0-20200121175148-a6ecf24a6d71
 	k8s.io/api v0.17.0
 	k8s.io/apiextensions-apiserver v0.0.0
 	k8s.io/apimachinery v0.17.0

@@ -135,13 +135,16 @@ func (i *Image) GetBaseImage() *container_runtime.StageImage {
 func (i *Image) FetchBaseImage(c *Conveyor) error {
 	switch i.baseImageType {
 	case ImageFromRegistryAsBaseImage:
-		if err := c.ContainerRuntime.RefreshImageObject(&container_runtime.DockerImage{Image: i.baseImage}); err != nil {
-			return err
-		}
+		containerRuntime := c.ContainerRuntime.(*container_runtime.LocalDockerServerRuntime)
 
-		if i.baseImage.IsExistsLocally() {
+		if inspect, err := containerRuntime.GetImageInspect(i.baseImage.Name()); err != nil {
+			return fmt.Errorf("unable to inspect local image %s: %s", i.baseImage.Name(), err)
+		} else if inspect != nil {
+			// TODO: do not use container_runtime.StageImage for base image
+			i.baseImage.SetStagesStorageImageInfo(image.NewInfoFromInspect(i.baseImage.Name(), inspect))
+
 			baseImageRepoId, err := i.getFromBaseImageIdFromRegistry(c, i.baseImage.Name())
-			if baseImageRepoId == i.baseImage.GetStagesStorageImageInfo().ID || err != nil {
+			if baseImageRepoId == inspect.ID || err != nil {
 				if err != nil {
 					logboek.LogWarnF("WARNING: cannot get base image id (%s): %s\n", i.baseImage.Name(), err)
 					logboek.LogWarnF("WARNING: using existing image %s without pull\n", i.baseImage.Name())
