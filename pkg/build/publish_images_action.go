@@ -14,15 +14,15 @@ import (
 	"github.com/flant/werf/pkg/util"
 )
 
-func NewPublishImagesPhase(c *Conveyor, imagesRepo storage.ImagesRepo, opts PublishImagesOptions) *PublishImagesPhase {
+func NewPublishImagesAction(c *Conveyor, imagesRepo storage.ImagesRepo, opts PublishImagesOptions) *PublishImagesAction {
 	tagsByScheme := map[tag_strategy.TagStrategy][]string{
 		tag_strategy.Custom:    opts.CustomTags,
 		tag_strategy.GitBranch: opts.TagsByGitBranch,
 		tag_strategy.GitTag:    opts.TagsByGitTag,
 		tag_strategy.GitCommit: opts.TagsByGitCommit,
 	}
-	return &PublishImagesPhase{
-		BasePhase:            BasePhase{c},
+	return &PublishImagesAction{
+		BaseAction:           BaseAction{c},
 		ImagesToPublish:      opts.ImagesToPublish,
 		TagsByScheme:         tagsByScheme,
 		TagByStagesSignature: opts.TagByStagesSignature,
@@ -30,66 +30,67 @@ func NewPublishImagesPhase(c *Conveyor, imagesRepo storage.ImagesRepo, opts Publ
 	}
 }
 
-type PublishImagesPhase struct {
-	BasePhase
+type PublishImagesAction struct {
+	BaseAction
 	ImagesToPublish      []string
 	TagsByScheme         map[tag_strategy.TagStrategy][]string
 	TagByStagesSignature bool
 	ImagesRepo           storage.ImagesRepo
 }
 
-func (phase *PublishImagesPhase) Name() string {
+func (action *PublishImagesAction) Name() string {
 	return "publish"
 }
 
-func (phase *PublishImagesPhase) BeforeImages() error {
+func (action *PublishImagesAction) BeforeImages() error {
 	return nil
 }
 
-func (phase *PublishImagesPhase) AfterImages() error {
+func (action *PublishImagesAction) AfterImages() error {
 	return nil
 }
 
-func (phase *PublishImagesPhase) BeforeImageStages(img *Image) error {
+func (action *PublishImagesAction) BeforeImageStages(img *Image) error {
 	return nil
 }
 
-func (phase *PublishImagesPhase) OnImageStage(img *Image, stg stage.Interface) (bool, error) {
+func (action *PublishImagesAction) OnImageStage(img *Image, stg stage.Interface) (bool, error) {
 	return true, nil
 }
 
-func (phase *PublishImagesPhase) AfterImageStages(img *Image) error {
+func (action *PublishImagesAction) AfterImageStages(img *Image) error {
 	if img.isArtifact {
 		return nil
 	}
 
-	if len(phase.ImagesToPublish) == 0 {
-		return phase.publishImage(img)
+	if len(action.ImagesToPublish) == 0 {
+		return action.publishImage(img)
 	}
 
-	for _, name := range phase.ImagesToPublish {
+	for _, name := range action.ImagesToPublish {
 		if name == img.GetName() {
-			return phase.publishImage(img)
+			return action.publishImage(img)
 		}
 	}
 
 	return nil
 }
 
-func (phase *PublishImagesPhase) ImageProcessingShouldBeStopped(img *Image) bool {
+func (action *PublishImagesAction) ImageProcessingShouldBeStopped(img *Image) bool {
 	return false
 }
 
 /*
-func (p *PublishImagesPhase) Run(c *Conveyor) error {
+func (p *PublishImagesAction) Run(c *Conveyor) error {
 	logProcessOptions := logboek.LogProcessOptions{ColorizeMsgFunc: logboek.ColorizeHighlight}
 	return logboek.LogProcess("Publishing images", logProcessOptions, func() error {
 		return p.run(c)
 	})
 }
 
-func (p *PublishImagesPhase) run(c *Conveyor) error {
-	// TODO: Push stages should occur on the BuildStagesPhase
+
+func (p *PublishImagesAction) run(c *Conveyor) error {
+	// TODO: Push stages should occur on the BuildStagesAction
 
 	for _, image := range imagesToPublish {
 		if image.isArtifact { // FIXME: distributed stages
@@ -126,7 +127,7 @@ func (p *PublishImagesPhase) run(c *Conveyor) error {
 	return nil
 }
 
-//func (p *PublishImagesPhase) publishImageStages(c *Conveyor, image *Image) error {
+//func (p *PublishImagesAction) publishImageStages(c *Conveyor, image *Image) error {
 //	stages := image.GetStages()
 //
 //	existingTags, err := docker_registry.Tags(p.ImagesRepo)
@@ -187,14 +188,14 @@ func (p *PublishImagesPhase) run(c *Conveyor) error {
 //}
 */
 
-func (phase *PublishImagesPhase) publishImage(img *Image) error {
-	existingTags, err := phase.fetchExistingTags(img.GetName())
+func (action *PublishImagesAction) publishImage(img *Image) error {
+	existingTags, err := action.fetchExistingTags(img.GetName())
 	if err != nil {
 		return err
 	}
 
 	var nonEmptySchemeInOrder []tag_strategy.TagStrategy
-	for strategy, tags := range phase.TagsByScheme {
+	for strategy, tags := range action.TagsByScheme {
 		if len(tags) == 0 {
 			continue
 		}
@@ -203,14 +204,14 @@ func (phase *PublishImagesPhase) publishImage(img *Image) error {
 	}
 
 	for _, strategy := range nonEmptySchemeInOrder {
-		imageMetaTags := phase.TagsByScheme[strategy]
+		imageMetaTags := action.TagsByScheme[strategy]
 
 		if err := logboek.Info.LogProcess(
 			fmt.Sprintf("%s tagging strategy", string(strategy)),
 			logboek.LevelLogProcessOptions{Style: logboek.HighlightStyle()},
 			func() error {
 				for _, imageMetaTag := range imageMetaTags {
-					if err := phase.publishImageByTag(img, imageMetaTag, strategy, existingTags); err != nil {
+					if err := action.publishImageByTag(img, imageMetaTag, strategy, existingTags); err != nil {
 						return fmt.Errorf("error publishing image %s by tag %s: %s", img.LogName(), imageMetaTag, err)
 					}
 				}
@@ -222,13 +223,13 @@ func (phase *PublishImagesPhase) publishImage(img *Image) error {
 		}
 	}
 
-	if phase.TagByStagesSignature {
+	if action.TagByStagesSignature {
 		if err := logboek.Info.LogProcess(
 			fmt.Sprintf("%s tagging strategy", tag_strategy.StagesSignature),
 			logboek.LevelLogProcessOptions{Style: logboek.HighlightStyle()},
 			func() error {
 
-				if err := phase.publishImageByTag(img, img.GetStagesSignature(), tag_strategy.StagesSignature, existingTags); err != nil {
+				if err := action.publishImageByTag(img, img.GetStagesSignature(), tag_strategy.StagesSignature, existingTags); err != nil {
 					return fmt.Errorf("error publishing image %s by image signature %s: %s", img.GetName(), img.GetStagesSignature(), err)
 				}
 
@@ -242,27 +243,27 @@ func (phase *PublishImagesPhase) publishImage(img *Image) error {
 	return nil
 }
 
-func (phase *PublishImagesPhase) fetchExistingTags(imageName string) (existingTags []string, err error) {
+func (action *PublishImagesAction) fetchExistingTags(imageName string) (existingTags []string, err error) {
 	logProcessMsg := fmt.Sprintf("Fetching existing repo tags")
 	_ = logboek.Info.LogProcessInline(logProcessMsg, logboek.LevelLogProcessInlineOptions{}, func() error {
-		existingTags, err = phase.ImagesRepo.GetAllImageRepoTags(imageName)
+		existingTags, err = action.ImagesRepo.GetAllImageRepoTags(imageName)
 		return nil
 	})
 	logboek.Info.LogOptionalLn()
 
 	if err != nil {
-		return existingTags, fmt.Errorf("error fetching existing tags from image repository %s: %s", phase.ImagesRepo.String(), err)
+		return existingTags, fmt.Errorf("error fetching existing tags from image repository %s: %s", action.ImagesRepo.String(), err)
 	}
 	return existingTags, nil
 }
 
-func (phase *PublishImagesPhase) publishImageByTag(img *Image, imageMetaTag string, tagStrategy tag_strategy.TagStrategy, initialExistingTagsList []string) error {
-	imageRepository := phase.ImagesRepo.ImageRepositoryName(img.GetName())
+func (action *PublishImagesAction) publishImageByTag(img *Image, imageMetaTag string, tagStrategy tag_strategy.TagStrategy, initialExistingTagsList []string) error {
+	imageRepository := action.ImagesRepo.ImageRepositoryName(img.GetName())
 	lastStageImage := img.GetLastNonEmptyStage().GetImage()
-	imageName := phase.ImagesRepo.ImageRepositoryNameWithTag(img.GetName(), imageMetaTag)
-	imageActualTag := phase.ImagesRepo.ImageRepositoryTag(img.GetName(), imageMetaTag)
+	imageName := action.ImagesRepo.ImageRepositoryNameWithTag(img.GetName(), imageMetaTag)
+	imageActualTag := action.ImagesRepo.ImageRepositoryTag(img.GetName(), imageMetaTag)
 
-	alreadyExists, err := phase.checkImageAlreadyExists(initialExistingTagsList, img.GetName(), imageMetaTag, lastStageImage)
+	alreadyExists, err := action.checkImageAlreadyExists(initialExistingTagsList, img.GetName(), imageMetaTag, lastStageImage)
 	if err != nil {
 		return fmt.Errorf("error checking image %s already exists in the images repo: %s", img.LogName(), err)
 	}
@@ -281,7 +282,7 @@ func (phase *PublishImagesPhase) publishImageByTag(img *Image, imageMetaTag stri
 		return nil
 	}
 
-	publishImage := container_runtime.NewWerfImage(phase.Conveyor.GetStageImage(lastStageImage.Name()), imageName, phase.Conveyor.ContainerRuntime.(*container_runtime.LocalDockerServerRuntime))
+	publishImage := container_runtime.NewWerfImage(action.Conveyor.GetStageImage(lastStageImage.Name()), imageName, action.Conveyor.ContainerRuntime.(*container_runtime.LocalDockerServerRuntime))
 
 	publishImage.Container().ServiceCommitChangeOptions().AddLabel(map[string]string{
 		image.WerfDockerImageName:  imageName,
@@ -300,7 +301,7 @@ func (phase *PublishImagesPhase) publishImageByTag(img *Image, imageMetaTag stri
 	}
 
 	publishingFunc := func() error {
-		if err := fetchStage(phase.Conveyor.StagesStorage, img.GetLastNonEmptyStage()); err != nil {
+		if err := fetchStage(action.Conveyor.StagesStorage, img.GetLastNonEmptyStage()); err != nil {
 			return err
 		}
 
@@ -313,17 +314,17 @@ func (phase *PublishImagesPhase) publishImageByTag(img *Image, imageMetaTag stri
 			return err
 		}
 
-		if err := phase.Conveyor.StorageLockManager.LockImage(imageName); err != nil {
+		if err := action.Conveyor.StorageLockManager.LockImage(imageName); err != nil {
 			return fmt.Errorf("error locking image %s: %s", imageName, err)
 		}
-		defer phase.Conveyor.StorageLockManager.UnlockImage(imageName)
+		defer action.Conveyor.StorageLockManager.UnlockImage(imageName)
 
-		existingTags, err := phase.fetchExistingTags(img.GetName())
+		existingTags, err := action.fetchExistingTags(img.GetName())
 		if err != nil {
 			return err
 		}
 
-		alreadyExists, err := phase.checkImageAlreadyExists(existingTags, img.GetName(), imageMetaTag, lastStageImage)
+		alreadyExists, err := action.checkImageAlreadyExists(existingTags, img.GetName(), imageMetaTag, lastStageImage)
 		if err != nil {
 			return fmt.Errorf("error checking image %s already exists in the images repo: %s", img.LogName(), err)
 		}
@@ -343,7 +344,7 @@ func (phase *PublishImagesPhase) publishImageByTag(img *Image, imageMetaTag stri
 			return nil
 		}
 
-		return phase.ImagesRepo.PublishImage(publishImage)
+		return action.ImagesRepo.PublishImage(publishImage)
 
 		return nil
 	}
@@ -357,8 +358,8 @@ func (phase *PublishImagesPhase) publishImageByTag(img *Image, imageMetaTag stri
 		publishingFunc)
 }
 
-func (phase *PublishImagesPhase) checkImageAlreadyExists(existingTags []string, werfImageName, imageMetaTag string, lastStageImage container_runtime.ImageInterface) (bool, error) {
-	imageActualTag := phase.ImagesRepo.ImageRepositoryTag(werfImageName, imageMetaTag)
+func (action *PublishImagesAction) checkImageAlreadyExists(existingTags []string, werfImageName, imageMetaTag string, lastStageImage container_runtime.ImageInterface) (bool, error) {
+	imageActualTag := action.ImagesRepo.ImageRepositoryTag(werfImageName, imageMetaTag)
 
 	if !util.IsStringsContainValue(existingTags, imageActualTag) {
 		return false, nil
@@ -367,7 +368,7 @@ func (phase *PublishImagesPhase) checkImageAlreadyExists(existingTags []string, 
 	var parentID string
 	var err error
 	getImageParentIDFunc := func() error {
-		repoImage, err := phase.ImagesRepo.GetRepoImage(werfImageName, imageMetaTag)
+		repoImage, err := action.ImagesRepo.GetRepoImage(werfImageName, imageMetaTag)
 		if err != nil {
 			return err
 		}

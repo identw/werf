@@ -203,12 +203,12 @@ func (c *Conveyor) ShouldBeBuilt() error {
 		return err
 	}
 
-	phases := []Phase{
-		NewBuildPhase(c, BuildPhaseOptions{SignaturesOnly: true}),
-		NewShouldBeBuiltPhase(c),
+	actions := []Action{
+		NewBuildAction(c, BuildActionOptions{SignaturesOnly: true}),
+		NewShouldBeBuiltAction(c),
 	}
 
-	return c.runPhases(phases, false)
+	return c.runActions(actions, false)
 }
 
 func (c *Conveyor) GetImageInfoGetters(configImages []*config.StapelImage, configImagesFromDockerfile []*config.ImageFromDockerfile, commonTag string, tagStrategy tag_strategy.TagStrategy, withoutRegistry bool) []images_manager.ImageInfoGetter {
@@ -248,29 +248,29 @@ func (c *Conveyor) GetImageInfoGetters(configImages []*config.StapelImage, confi
 }
 
 func (c *Conveyor) BuildStages(opts BuildStagesOptions) error {
-	/*var phases []Phase
-	phases = append(phases, NewInitializationPhase())
-	phases = append(phases, NewSignaturesPhase())
-	phases = append(phases, NewPrepareStagesPhase())
-	phases = append(phases, NewBuildStagesPhase(stageRepo, opts))
+	/*var actions []Action
+	actions = append(actions, NewInitializationAction())
+	actions = append(actions, NewSignaturesAction())
+	actions = append(actions, NewPrepareStagesAction())
+	actions = append(actions, NewBuildStagesAction(stageRepo, opts))
 
 	if err := c.StorageLockManager.LockAllImagesReadOnly(c.projectName()); err != nil {
 		return fmt.Errorf("error locking all images read only: %s", err)
 	}
 	defer c.StorageLockManager.UnlockAllImages(c.projectName())
 
-	return c.runPhases(phases)*/
+	return c.runActions(actions)*/
 
 	if err := c.determineStages(); err != nil {
 		return err
 	}
 
-	phases := []Phase{NewBuildPhase(c, BuildPhaseOptions{
+	actions := []Action{NewBuildAction(c, BuildActionOptions{
 		IntrospectOptions: opts.IntrospectOptions,
 		ImageBuildOptions: opts.ImageBuildOptions,
 	})}
 
-	return c.runPhases(phases, true)
+	return c.runActions(actions, true)
 }
 
 type PublishImagesOptions struct {
@@ -283,20 +283,20 @@ func (c *Conveyor) PublishImages(opts PublishImagesOptions) error {
 		return err
 	}
 
-	phases := []Phase{
-		NewBuildPhase(c, BuildPhaseOptions{SignaturesOnly: true}),
-		NewShouldBeBuiltPhase(c),
-		NewPublishImagesPhase(c, c.ImagesRepo, opts),
+	actions := []Action{
+		NewBuildAction(c, BuildActionOptions{SignaturesOnly: true}),
+		NewShouldBeBuiltAction(c),
+		NewPublishImagesAction(c, c.ImagesRepo, opts),
 	}
 
-	return c.runPhases(phases, true)
+	return c.runActions(actions, true)
 
 	/*
-			var phases []Phase
-			phases = append(phases, NewInitializationPhase())
-			phases = append(phases, NewSignaturesPhase())
-			phases = append(phases, NewShouldBeBuiltPhase())
-			phases = append(phases, NewPublishImagesPhase(imagesRepoManager, opts))
+			var actions []Action
+			actions = append(actions, NewInitializationAction())
+			actions = append(actions, NewSignaturesAction())
+			actions = append(actions, NewShouldBeBuiltAction())
+			actions = append(actions, NewPublishImagesAction(imagesRepoManager, opts))
 
 		TODO: locks
 			if err := c.StorageLockManager.LockAllImagesReadOnly(c.projectName()); err != nil {
@@ -304,7 +304,7 @@ func (c *Conveyor) PublishImages(opts PublishImagesOptions) error {
 			}
 			defer c.StorageLockManager.UnlockAllImages(c.projectName())
 
-			return c.runPhases(phases)
+			return c.runActions(actions)
 	*/
 }
 
@@ -318,28 +318,28 @@ func (c *Conveyor) BuildAndPublish(opts BuildAndPublishOptions) error {
 		return err
 	}
 
-	phases := []Phase{
-		NewBuildPhase(c, BuildPhaseOptions{ImageBuildOptions: opts.ImageBuildOptions, IntrospectOptions: opts.IntrospectOptions}),
-		NewShouldBeBuiltPhase(c),
-		NewPublishImagesPhase(c, c.ImagesRepo, opts.PublishImagesOptions),
+	actions := []Action{
+		NewBuildAction(c, BuildActionOptions{ImageBuildOptions: opts.ImageBuildOptions, IntrospectOptions: opts.IntrospectOptions}),
+		NewShouldBeBuiltAction(c),
+		NewPublishImagesAction(c, c.ImagesRepo, opts.PublishImagesOptions),
 	}
 
-	return c.runPhases(phases, true)
+	return c.runActions(actions, true)
 
 	/*
-		var phases []Phase
-		phases = append(phases, NewInitializationPhase())
-		phases = append(phases, NewSignaturesPhase())
-		phases = append(phases, NewPrepareStagesPhase())
-		phases = append(phases, NewBuildStagesPhase(stagesRepo, opts.BuildStagesOptions))
-		phases = append(phases, NewPublishImagesPhase(imagesRepoManager, opts.PublishImagesOptions))
+		var actions []Action
+		actions = append(actions, NewInitializationAction())
+		actions = append(actions, NewSignaturesAction())
+		actions = append(actions, NewPrepareStagesAction())
+		actions = append(actions, NewBuildStagesAction(stagesRepo, opts.BuildStagesOptions))
+		actions = append(actions, NewPublishImagesAction(imagesRepoManager, opts.PublishImagesOptions))
 
 		if err := c.StorageLockManager.LockAllImagesReadOnly(c.projectName()); err != nil {
 			return fmt.Errorf("error locking all images read only: %s", err)
 		}
 		defer c.StorageLockManager.UnlockAllImages(c.projectName())
 
-		return c.runPhases(phases)
+		return c.runActions(actions)
 	*/
 }
 
@@ -396,25 +396,25 @@ func (c *Conveyor) doDetermineStages() error {
 	return nil
 }
 
-func (c *Conveyor) runPhases(phases []Phase, logImages bool) error {
+func (c *Conveyor) runActions(actions []Action, logImages bool) error {
 	// TODO: Parallelize builds
 	//images (по зависимостям), dependantImagesByStage
-	//dependantImagesByStage строится в InitializationPhase, спросить у stage что она ждет.
+	//dependantImagesByStage строится в InitializationAction, спросить у stage что она ждет.
 	//Количество воркеров-goroutine ограничено.
 	//Надо распределить images по воркерам.
 	//
 	//for img := range images {
 	//	Goroutine {
-	//		phases = append(phases, NewBuildStage())
+	//		actions = append(actions, NewBuildStage())
 	//
-	//    	for phase = range phases {
-	//            phase.OnStart()
+	//    	for action = range actions {
+	//            action.OnStart()
 	//
 	//	    	for stage = range stages {
 	//		    	for img = dependantImagesByStage[stage.name] {
 	//			    	wait <-imgChanMap[img]
 	//				}
-	//				phase.HandleStage(stage)
+	//				action.HandleStage(stage)
 	//    		}
 	//		}
 	//
@@ -429,35 +429,35 @@ func (c *Conveyor) runPhases(phases []Phase, logImages bool) error {
 		imagesLogger = logboek.Info
 	}
 
-	for _, phase := range phases {
-		logProcessMsg := fmt.Sprintf("Phase %s -- BeforeImages()", phase.Name())
+	for _, action := range actions {
+		logProcessMsg := fmt.Sprintf("Action %s -- BeforeImages()", action.Name())
 		logboek.Debug.LogProcessStart(logProcessMsg, logboek.LevelLogProcessStartOptions{})
-		if err := phase.BeforeImages(); err != nil {
+		if err := action.BeforeImages(); err != nil {
 			logboek.Debug.LogProcessFail(logboek.LevelLogProcessFailOptions{})
-			return fmt.Errorf("phase %s before images handler failed: %s", phase.Name(), err)
+			return fmt.Errorf("action %s before images handler failed: %s", action.Name(), err)
 		}
 		logboek.Debug.LogProcessEnd(logboek.LevelLogProcessEndOptions{})
 	}
 
 	for _, img := range c.imagesInOrder {
 		if err := imagesLogger.LogProcess(img.LogDetailedName(), logboek.LevelLogProcessOptions{Style: img.LogProcessStyle()}, func() error {
-			for _, phase := range phases {
-				logProcessMsg := fmt.Sprintf("Phase %s -- BeforeImageStages()", phase.Name())
+			for _, action := range actions {
+				logProcessMsg := fmt.Sprintf("Action %s -- BeforeImageStages()", action.Name())
 				logboek.Debug.LogProcessStart(logProcessMsg, logboek.LevelLogProcessStartOptions{})
-				if err := phase.BeforeImageStages(img); err != nil {
+				if err := action.BeforeImageStages(img); err != nil {
 					logboek.Debug.LogProcessFail(logboek.LevelLogProcessFailOptions{})
-					return fmt.Errorf("phase %s before image %s stages handler failed: %s", phase.Name(), img.GetLogName(), err)
+					return fmt.Errorf("action %s before image %s stages handler failed: %s", action.Name(), img.GetLogName(), err)
 				}
 				logboek.Debug.LogProcessEnd(logboek.LevelLogProcessEndOptions{})
 
-				logProcessMsg = fmt.Sprintf("Phase %s -- OnImageStage()", phase.Name())
+				logProcessMsg = fmt.Sprintf("Action %s -- OnImageStage()", action.Name())
 				logboek.Debug.LogProcessStart(logProcessMsg, logboek.LevelLogProcessStartOptions{})
 				var newStages []stage.Interface
 				for _, stg := range img.GetStages() {
-					logboek.Debug.LogF("Phase %s -- OnImageStage() %s %s\n", phase.Name(), img.GetLogName(), stg.LogDetailedName())
-					if keepStage, err := phase.OnImageStage(img, stg); err != nil {
+					logboek.Debug.LogF("Action %s -- OnImageStage() %s %s\n", action.Name(), img.GetLogName(), stg.LogDetailedName())
+					if keepStage, err := action.OnImageStage(img, stg); err != nil {
 						logboek.Debug.LogProcessFail(logboek.LevelLogProcessFailOptions{})
-						return fmt.Errorf("phase %s on image %s stage %s handler failed: %s", phase.Name(), img.GetLogName(), stg.Name(), err)
+						return fmt.Errorf("action %s on image %s stage %s handler failed: %s", action.Name(), img.GetLogName(), stg.Name(), err)
 					} else if keepStage {
 						newStages = append(newStages, stg)
 					}
@@ -465,17 +465,17 @@ func (c *Conveyor) runPhases(phases []Phase, logImages bool) error {
 				img.SetStages(newStages)
 				logboek.Debug.LogProcessEnd(logboek.LevelLogProcessEndOptions{})
 
-				logProcessMsg = fmt.Sprintf("Phase %s -- AfterImageStages()", phase.Name())
+				logProcessMsg = fmt.Sprintf("Action %s -- AfterImageStages()", action.Name())
 				logboek.Debug.LogProcessStart(logProcessMsg, logboek.LevelLogProcessStartOptions{})
-				if err := phase.AfterImageStages(img); err != nil {
+				if err := action.AfterImageStages(img); err != nil {
 					logboek.Debug.LogProcessFail(logboek.LevelLogProcessFailOptions{})
-					return fmt.Errorf("phase %s after image %s stages handler failed: %s", phase.Name(), img.GetLogName(), err)
+					return fmt.Errorf("action %s after image %s stages handler failed: %s", action.Name(), img.GetLogName(), err)
 				}
 				logboek.Debug.LogProcessEnd(logboek.LevelLogProcessEndOptions{})
 
-				logProcessMsg = fmt.Sprintf("Phase %s -- ImageProcessingShouldBeStopped()", phase.Name())
+				logProcessMsg = fmt.Sprintf("Action %s -- ImageProcessingShouldBeStopped()", action.Name())
 				logboek.Debug.LogProcessStart(logProcessMsg, logboek.LevelLogProcessStartOptions{})
-				if phase.ImageProcessingShouldBeStopped(img) {
+				if action.ImageProcessingShouldBeStopped(img) {
 					logboek.Debug.LogProcessEnd(logboek.LevelLogProcessEndOptions{})
 					return nil
 				}
@@ -488,10 +488,10 @@ func (c *Conveyor) runPhases(phases []Phase, logImages bool) error {
 		}
 	}
 
-	for _, phase := range phases {
-		if err := logboek.Debug.LogProcess(fmt.Sprintf("Phase %s -- AfterImages()", phase.Name()), logboek.LevelLogProcessOptions{}, func() error {
-			if err := phase.AfterImages(); err != nil {
-				return fmt.Errorf("phase %s after images handler failed: %s", phase.Name(), err)
+	for _, action := range actions {
+		if err := logboek.Debug.LogProcess(fmt.Sprintf("Action %s -- AfterImages()", action.Name()), logboek.LevelLogProcessOptions{}, func() error {
+			if err := action.AfterImages(); err != nil {
+				return fmt.Errorf("action %s after images handler failed: %s", action.Name(), err)
 			}
 
 			return nil
@@ -505,11 +505,11 @@ func (c *Conveyor) runPhases(phases []Phase, logImages bool) error {
 
 /*
 TODO: locks and log
-func (c *Conveyor) runPhases(phases []Phase) error {
+func (c *Conveyor) runActions(actions []Action) error {
 		logboek.LogOptionalLn()
 
-		for _, phase := range phases {
-			err := phase.Run(c)
+		for _, action := range actions {
+			err := action.Run(c)
 
 			if err != nil {
 				c.StorageLockManager.ReleaseAllStageLocks()
