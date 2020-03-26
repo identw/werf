@@ -688,10 +688,11 @@ func setupImagesRepoMode(cmdData *CmdData, cmd *cobra.Command) {
 
 	defaultValue := os.Getenv("WERF_IMAGES_REPO_MODE")
 	if defaultValue == "" {
-		defaultValue = storage.MultirepoImagesRepoMode
+		defaultValue = "auto"
 	}
 
-	cmd.Flags().StringVarP(cmdData.ImagesRepoMode, "images-repo-mode", "", defaultValue, fmt.Sprintf(`Define how to store images in Repo: %[1]s or %[2]s (defaults to $WERF_IMAGES_REPO_MODE or %[1]s)`, storage.MultirepoImagesRepoMode, storage.MonorepoImagesRepoMode))
+	cmd.Flags().StringVarP(cmdData.ImagesRepoMode, "images-repo-mode", "", defaultValue, fmt.Sprintf(`Define how to store in images repo: %s or %s.
+Default $WERF_IMAGES_REPO_MODE or auto mode`, docker_registry.MultirepoRepoMode, docker_registry.MonorepoRepoMode))
 }
 
 func setupImagesRepoImplementation(cmdData *CmdData, cmd *cobra.Command) {
@@ -1463,10 +1464,10 @@ func GetOptionalImagesRepoAddress(projectName string, cmdData *CmdData) (string,
 
 func getImagesRepoMode(cmdData *CmdData) (string, error) {
 	switch *cmdData.ImagesRepoMode {
-	case storage.MultirepoImagesRepoMode, storage.MonorepoImagesRepoMode:
+	case docker_registry.MultirepoRepoMode, docker_registry.MonorepoRepoMode, "auto":
 		return *cmdData.ImagesRepoMode, nil
 	default:
-		return "", fmt.Errorf("bad --images-repo-mode '%s': only %s or %s supported", *cmdData.ImagesRepoMode, storage.MultirepoImagesRepoMode, storage.MonorepoImagesRepoMode)
+		return "", fmt.Errorf("bad --images-repo-mode '%s': only %s, %s or auto supported", *cmdData.ImagesRepoMode, docker_registry.MultirepoRepoMode, docker_registry.MonorepoRepoMode)
 	}
 }
 
