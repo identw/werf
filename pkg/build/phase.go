@@ -2,7 +2,7 @@ package build
 
 import "github.com/flant/werf/pkg/build/stage"
 
-type Action interface {
+type Phase interface {
 	Name() string
 	BeforeImages() error
 	AfterImages() error
@@ -12,6 +12,6 @@ type Action interface {
 	ImageProcessingShouldBeStopped(img *Image) bool
 }
 
-type BaseAction struct {
+type BasePhase struct {
 	Conveyor *Conveyor
 }

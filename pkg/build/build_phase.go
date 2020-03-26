@@ -26,7 +26,7 @@ const (
 	MaxStageNameLength = 22
 )
 
-type BuildActionOptions struct {
+type BuildPhaseOptions struct {
 	SignaturesOnly    bool
 	ImageBuildOptions container_runtime.BuildOptions
 	IntrospectOptions IntrospectOptions
@@ -56,59 +56,59 @@ func (opts *IntrospectOptions) ImageStageShouldBeIntrospected(imageName, stageNa
 	return false
 }
 
-func NewBuildAction(c *Conveyor, opts BuildActionOptions) *BuildAction {
-	return &BuildAction{
-		BaseAction:         BaseAction{c},
-		BuildActionOptions: opts,
+func NewBuildPhase(c *Conveyor, opts BuildPhaseOptions) *BuildPhase {
+	return &BuildPhase{
+		BasePhase:         BasePhase{c},
+		BuildPhaseOptions: opts,
 	}
 }
 
-type BuildAction struct {
-	BaseAction
+type BuildPhase struct {
+	BasePhase
 
 	PrevStage                  stage.Interface
 	PrevNonEmptyStage          stage.Interface
 	PrevBuiltStage             stage.Interface
 	PrevNonEmptyStageImageSize int64
 
-	BuildActionOptions
+	BuildPhaseOptions
 }
 
-func (action *BuildAction) Name() string {
+func (phase *BuildPhase) Name() string {
 	return "build"
 }
 
-func (action *BuildAction) BeforeImages() error {
+func (phase *BuildPhase) BeforeImages() error {
 	return nil
 }
 
-func (action *BuildAction) AfterImages() error {
+func (phase *BuildPhase) AfterImages() error {
 	return nil
 }
 
-func (action *BuildAction) ImageProcessingShouldBeStopped(img *Image) bool {
+func (phase *BuildPhase) ImageProcessingShouldBeStopped(img *Image) bool {
 	return false
 }
 
-func (action *BuildAction) BeforeImageStages(img *Image) error {
-	action.PrevStage = nil
-	action.PrevNonEmptyStage = nil
-	action.PrevBuiltStage = nil
-	action.PrevNonEmptyStageImageSize = 0
+func (phase *BuildPhase) BeforeImageStages(img *Image) error {
+	phase.PrevStage = nil
+	phase.PrevNonEmptyStage = nil
+	phase.PrevBuiltStage = nil
+	phase.PrevNonEmptyStageImageSize = 0
 
-	if err := action.Conveyor.StagesStorage.AddManagedImage(action.Conveyor.projectName(), img.GetName()); err != nil {
-		return fmt.Errorf("unable to add image %q to the managed images of project %q: %s", img.GetName(), action.Conveyor.projectName(), err)
+	if err := phase.Conveyor.StagesStorage.AddManagedImage(phase.Conveyor.projectName(), img.GetName()); err != nil {
+		return fmt.Errorf("unable to add image %q to the managed images of project %q: %s", img.GetName(), phase.Conveyor.projectName(), err)
 	}
 
-	img.SetupBaseImage(action.Conveyor)
+	img.SetupBaseImage(phase.Conveyor)
 
 	return nil
 }
 
-func (action *BuildAction) AfterImageStages(img *Image) error {
-	img.SetLastNonEmptyStage(action.PrevNonEmptyStage)
+func (phase *BuildPhase) AfterImageStages(img *Image) error {
+	img.SetLastNonEmptyStage(phase.PrevNonEmptyStage)
 
-	stagesSig, err := calculateSignature("imageStages", "", action.PrevNonEmptyStage, action.Conveyor)
+	stagesSig, err := calculateSignature("imageStages", "", phase.PrevNonEmptyStage, phase.Conveyor)
 	if err != nil {
 		return fmt.Errorf("unable to calculate image %s stages-signature: %s", img.GetName(), err)
 	}
@@ -121,13 +121,13 @@ func (action *BuildAction) AfterImageStages(img *Image) error {
 	TODO: calculating-signatures, prepare and build logs
 
 SIGNATURES LOGS
-func (p *SignaturesAction) Run(c *Conveyor) error {
+func (p *SignaturesPhase) Run(c *Conveyor) error {
 	logProcessOptions := logboek.LogProcessOptions{ColorizeMsgFunc: logboek.ColorizeHighlight}
 	return logboek.LogProcess("Calculating signatures", logProcessOptions, func() error {
 		return logboek.WithoutIndent(func() error { return p.run(c) })
 	})
 }
-func (p *SignaturesAction) run(c *Conveyor) error {
+func (p *SignaturesPhase) run(c *Conveyor) error {
 	for _, image := range c.imagesInOrder {
 		if err := logboek.LogProcess(image.LogDetailedName(), logboek.LogProcessOptions{ColorizeMsgFunc: image.LogProcessColorizeFunc()}, func() error {
 			return p.calculateImageSignatures(c, image)
@@ -144,7 +144,7 @@ PREPARE LOGS
 	return logboek.LogProcess("Preparing stages build instructions", logProcessOptions, func() error {
 		return p.run(c)
 	})
-func (p *PrepareStagesAction) run(c *Conveyor) (err error) {
+func (p *PrepareStagesPhase) run(c *Conveyor) (err error) {
 	for _, image := range c.imagesInOrder {
 		if err := logboek.LogProcess(image.LogDetailedName(), logboek.LogProcessOptions{ColorizeMsgFunc: image.LogProcessColorizeFunc()}, func() error {
 			return p.runImage(image, c)
@@ -173,61 +173,61 @@ images := c.imagesInOrder
 }
 */
 
-func (action *BuildAction) GetPrevImage(img *Image, stg stage.Interface) container_runtime.ImageInterface {
+func (phase *BuildPhase) GetPrevImage(img *Image, stg stage.Interface) container_runtime.ImageInterface {
 	if stg.Name() == "from" {
 		return img.GetBaseImage()
-	} else if action.PrevNonEmptyStage != nil {
-		return action.PrevNonEmptyStage.GetImage()
+	} else if phase.PrevNonEmptyStage != nil {
+		return phase.PrevNonEmptyStage.GetImage()
 	}
 	return nil
 }
 
-func (action *BuildAction) GetPrevBuiltImage(img *Image, stg stage.Interface) container_runtime.ImageInterface {
+func (phase *BuildPhase) GetPrevBuiltImage(img *Image, stg stage.Interface) container_runtime.ImageInterface {
 	if stg.Name() == "from" {
 		return img.GetBaseImage()
-	} else if action.PrevBuiltStage != nil {
-		return action.PrevBuiltStage.GetImage()
+	} else if phase.PrevBuiltStage != nil {
+		return phase.PrevBuiltStage.GetImage()
 	}
 	return nil
 }
 
-func (action *BuildAction) OnImageStage(img *Image, stg stage.Interface) (bool, error) {
-	isEmpty, err := stg.IsEmpty(action.Conveyor, action.GetPrevBuiltImage(img, stg))
+func (phase *BuildPhase) OnImageStage(img *Image, stg stage.Interface) (bool, error) {
+	isEmpty, err := stg.IsEmpty(phase.Conveyor, phase.GetPrevBuiltImage(img, stg))
 	if err != nil {
 		return false, fmt.Errorf("error checking stage %s is empty: %s", stg.Name(), err)
 	}
 
 	if stg.Name() != "from" {
-		if action.PrevStage == nil {
+		if phase.PrevStage == nil {
 			panic(fmt.Sprintf("expected PrevStage to be set for image %q stage %s!", img.GetName(), stg.Name()))
 		}
 	}
 
 	if !isEmpty {
-		if action.SignaturesOnly {
-			if err := action.calculateStageSignature(img, stg); err != nil {
+		if phase.SignaturesOnly {
+			if err := phase.calculateStageSignature(img, stg); err != nil {
 				return false, err
 			}
 		} else {
 			if stg.Name() != "from" {
-				if action.PrevNonEmptyStage == nil {
+				if phase.PrevNonEmptyStage == nil {
 					panic(fmt.Sprintf("expected PrevNonEmptyStage to be set for image %q stage %s", img.GetName(), stg.Name()))
 				}
-				if action.PrevBuiltStage == nil {
+				if phase.PrevBuiltStage == nil {
 					panic(fmt.Sprintf("expected PrevBuiltStage to be set for image %q stage %s", img.GetName(), stg.Name()))
 				}
-				if action.PrevBuiltStage != action.PrevNonEmptyStage {
-					panic(fmt.Sprintf("expected PrevBuiltStage (%q) to equal PrevNonEmptyStage (%q) for image %q stage %s", action.PrevBuiltStage.Name(), action.PrevNonEmptyStage.Name(), img.GetName(), stg.Name()))
+				if phase.PrevBuiltStage != phase.PrevNonEmptyStage {
+					panic(fmt.Sprintf("expected PrevBuiltStage (%q) to equal PrevNonEmptyStage (%q) for image %q stage %s", phase.PrevBuiltStage.Name(), phase.PrevNonEmptyStage.Name(), img.GetName(), stg.Name()))
 				}
 			}
 
-			if err := action.calculateStageSignature(img, stg); err != nil {
+			if err := phase.calculateStageSignature(img, stg); err != nil {
 				return false, err
 			}
-			if err := action.prepareStage(img, stg); err != nil {
+			if err := phase.prepareStage(img, stg); err != nil {
 				return false, err
 			}
-			if err := action.buildStage(img, stg); err != nil {
+			if err := phase.buildStage(img, stg); err != nil {
 				return false, err
 			}
 
@@ -237,21 +237,21 @@ func (action *BuildAction) OnImageStage(img *Image, stg stage.Interface) (bool, 
 		}
 	}
 
-	action.PrevStage = stg
-	logboek.Debug.LogF("Set prev stage = %q %s\n", action.PrevStage.Name(), action.PrevStage.GetSignature())
+	phase.PrevStage = stg
+	logboek.Debug.LogF("Set prev stage = %q %s\n", phase.PrevStage.Name(), phase.PrevStage.GetSignature())
 
 	if !isEmpty {
-		action.PrevNonEmptyStage = stg
-		logboek.Debug.LogF("Set prev non empty stage = %q %s\n", action.PrevNonEmptyStage.Name(), action.PrevNonEmptyStage.GetSignature())
+		phase.PrevNonEmptyStage = stg
+		logboek.Debug.LogF("Set prev non empty stage = %q %s\n", phase.PrevNonEmptyStage.Name(), phase.PrevNonEmptyStage.GetSignature())
 
-		if action.PrevNonEmptyStage.GetImage().GetStagesStorageImageInfo() != nil {
-			action.PrevNonEmptyStageImageSize = action.PrevNonEmptyStage.GetImage().GetStagesStorageImageInfo().Size
-			logboek.Debug.LogF("Set prev non empty stage image size = %d %q %s\n", action.PrevNonEmptyStageImageSize, action.PrevNonEmptyStage.Name(), action.PrevNonEmptyStage.GetSignature())
+		if phase.PrevNonEmptyStage.GetImage().GetStagesStorageImageInfo() != nil {
+			phase.PrevNonEmptyStageImageSize = phase.PrevNonEmptyStage.GetImage().GetStagesStorageImageInfo().Size
+			logboek.Debug.LogF("Set prev non empty stage image size = %d %q %s\n", phase.PrevNonEmptyStageImageSize, phase.PrevNonEmptyStage.Name(), phase.PrevNonEmptyStage.GetSignature())
 		}
 
 		if stg.GetImage().GetStagesStorageImageInfo() != nil {
-			action.PrevBuiltStage = stg
-			logboek.Debug.LogF("Set prev built stage = %q (image %s)\n", action.PrevBuiltStage.Name(), action.PrevBuiltStage.GetImage().Name())
+			phase.PrevBuiltStage = stg
+			logboek.Debug.LogF("Set prev built stage = %q (image %s)\n", phase.PrevBuiltStage.Name(), phase.PrevBuiltStage.GetImage().Name())
 		}
 
 		return true, nil
@@ -291,13 +291,13 @@ func calculateSignature(stageName, stageDependencies string, prevNonEmptyStage s
 	return signature, nil
 }
 
-func (action *BuildAction) calculateStageSignature(img *Image, stg stage.Interface) error {
-	stageDependencies, err := stg.GetDependencies(action.Conveyor, action.GetPrevImage(img, stg), action.GetPrevBuiltImage(img, stg))
+func (phase *BuildPhase) calculateStageSignature(img *Image, stg stage.Interface) error {
+	stageDependencies, err := stg.GetDependencies(phase.Conveyor, phase.GetPrevImage(img, stg), phase.GetPrevBuiltImage(img, stg))
 	if err != nil {
 		return err
 	}
 
-	stageSig, err := calculateSignature(string(stg.Name()), stageDependencies, action.PrevNonEmptyStage, action.Conveyor)
+	stageSig, err := calculateSignature(string(stg.Name()), stageDependencies, phase.PrevNonEmptyStage, phase.Conveyor)
 	if err != nil {
 		return err
 	}
@@ -307,16 +307,16 @@ func (action *BuildAction) calculateStageSignature(img *Image, stg stage.Interfa
 	var shouldResetCache bool
 	var suitableImageFound bool
 
-	cacheExists, cacheImagesDescs, err := action.getImagesBySignatureFromCache(string(stg.Name()), stageSig)
+	cacheExists, cacheImagesDescs, err := phase.getImagesBySignatureFromCache(string(stg.Name()), stageSig)
 	if err != nil {
 		return err
 	}
 
 	if cacheExists {
-		if imgInfo, err := action.selectSuitableStagesStorageImage(stg, cacheImagesDescs); err != nil {
+		if imgInfo, err := phase.selectSuitableStagesStorageImage(stg, cacheImagesDescs); err != nil {
 			return err
 		} else if imgInfo != nil {
-			if freshImgInfo, err := action.Conveyor.StagesStorage.GetImageInfo(action.Conveyor.projectName(), imgInfo.Signature, imgInfo.UniqueID); err != nil {
+			if freshImgInfo, err := phase.Conveyor.StagesStorage.GetImageInfo(phase.Conveyor.projectName(), imgInfo.Signature, imgInfo.UniqueID); err != nil {
 				return fmt.Errorf("unable to get image %q info from stages storage: %s", imgInfo.Name, err)
 			} else if freshImgInfo == nil {
 				logboek.Debug.LogF(
@@ -327,7 +327,7 @@ func (action *BuildAction) calculateStageSignature(img *Image, stg stage.Interfa
 			} else {
 				suitableImageFound = true
 
-				i = action.Conveyor.GetOrCreateStageImage(action.GetPrevImage(img, stg).(*container_runtime.StageImage), freshImgInfo.Name)
+				i = phase.Conveyor.GetOrCreateStageImage(phase.GetPrevImage(img, stg).(*container_runtime.StageImage), freshImgInfo.Name)
 				i.SetStagesStorageImageInfo(freshImgInfo)
 				stg.SetImage(i)
 			}
@@ -341,17 +341,17 @@ func (action *BuildAction) calculateStageSignature(img *Image, stg stage.Interfa
 	}
 
 	if shouldResetCache {
-		imagesDescs, err := action.atomicGetImagesBySignatureFromStagesStorageWithCacheReset(string(stg.Name()), stageSig)
+		imagesDescs, err := phase.atomicGetImagesBySignatureFromStagesStorageWithCacheReset(string(stg.Name()), stageSig)
 		if err != nil {
 			return err
 		}
 
-		if imgInfo, err := action.selectSuitableStagesStorageImage(stg, imagesDescs); err != nil {
+		if imgInfo, err := phase.selectSuitableStagesStorageImage(stg, imagesDescs); err != nil {
 			return err
 		} else if imgInfo != nil {
 			suitableImageFound = true
 
-			i = action.Conveyor.GetOrCreateStageImage(action.GetPrevImage(img, stg).(*container_runtime.StageImage), imgInfo.Name)
+			i = phase.Conveyor.GetOrCreateStageImage(phase.GetPrevImage(img, stg).(*container_runtime.StageImage), imgInfo.Name)
 			i.SetStagesStorageImageInfo(imgInfo)
 			stg.SetImage(i)
 		}
@@ -359,18 +359,18 @@ func (action *BuildAction) calculateStageSignature(img *Image, stg stage.Interfa
 
 	if !suitableImageFound {
 		// Will build a new image
-		i = action.Conveyor.GetOrCreateStageImage(action.GetPrevImage(img, stg).(*container_runtime.StageImage), uuid.New().String())
+		i = phase.Conveyor.GetOrCreateStageImage(phase.GetPrevImage(img, stg).(*container_runtime.StageImage), uuid.New().String())
 		stg.SetImage(i)
 	}
 
-	if err = stg.AfterSignatureCalculated(action.Conveyor); err != nil {
+	if err = stg.AfterSignatureCalculated(phase.Conveyor); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (action *BuildAction) selectSuitableStagesStorageImage(stg stage.Interface, imagesDescs []*image.Info) (*image.Info, error) {
+func (phase *BuildPhase) selectSuitableStagesStorageImage(stg stage.Interface, imagesDescs []*image.Info) (*image.Info, error) {
 	if len(imagesDescs) == 0 {
 		return nil, nil
 	}
@@ -404,7 +404,7 @@ func (action *BuildAction) selectSuitableStagesStorageImage(stg stage.Interface,
 	return imgInfo, nil
 }
 
-func (action *BuildAction) getImagesBySignatureFromCache(stageName, stageSig string) (bool, []*image.Info, error) {
+func (phase *BuildPhase) getImagesBySignatureFromCache(stageName, stageSig string) (bool, []*image.Info, error) {
 	var cacheExists bool
 	var cacheImagesDescs []*image.Info
 
@@ -413,9 +413,9 @@ func (action *BuildAction) getImagesBySignatureFromCache(stageName, stageSig str
 		logboek.LevelLogProcessOptions{},
 		func() error {
 			var err error
-			cacheExists, cacheImagesDescs, err = action.Conveyor.StagesStorageCache.GetImagesBySignature(action.Conveyor.projectName(), stageSig)
+			cacheExists, cacheImagesDescs, err = phase.Conveyor.StagesStorageCache.GetImagesBySignature(phase.Conveyor.projectName(), stageSig)
 			if err != nil {
-				return fmt.Errorf("error getting project %s stage %s images from stages storage cache: %s", action.Conveyor.projectName(), stageSig, err)
+				return fmt.Errorf("error getting project %s stage %s images from stages storage cache: %s", phase.Conveyor.projectName(), stageSig, err)
 			}
 
 			return nil
@@ -425,11 +425,11 @@ func (action *BuildAction) getImagesBySignatureFromCache(stageName, stageSig str
 	return cacheExists, cacheImagesDescs, err
 }
 
-func (action *BuildAction) atomicGetImagesBySignatureFromStagesStorageWithCacheReset(stageName, stageSig string) ([]*image.Info, error) {
-	if err := action.Conveyor.StorageLockManager.LockStageCache(action.Conveyor.projectName(), stageSig); err != nil {
-		return nil, fmt.Errorf("error locking project %s stage %s cache: %s", action.Conveyor.projectName(), stageSig, err)
+func (phase *BuildPhase) atomicGetImagesBySignatureFromStagesStorageWithCacheReset(stageName, stageSig string) ([]*image.Info, error) {
+	if err := phase.Conveyor.StorageLockManager.LockStageCache(phase.Conveyor.projectName(), stageSig); err != nil {
+		return nil, fmt.Errorf("error locking project %s stage %s cache: %s", phase.Conveyor.projectName(), stageSig, err)
 	}
-	defer action.Conveyor.StorageLockManager.UnlockStageCache(action.Conveyor.projectName(), stageSig)
+	defer phase.Conveyor.StorageLockManager.UnlockStageCache(phase.Conveyor.projectName(), stageSig)
 
 	var originImagesDescs []*image.Info
 	var err error
@@ -437,9 +437,9 @@ func (action *BuildAction) atomicGetImagesBySignatureFromStagesStorageWithCacheR
 		fmt.Sprintf("Getting stage %s images by signature %s from stages storage", stageName, stageSig),
 		logboek.LevelLogProcessOptions{},
 		func() error {
-			originImagesDescs, err = action.Conveyor.StagesStorage.GetRepoImagesBySignature(action.Conveyor.projectName(), stageSig)
+			originImagesDescs, err = phase.Conveyor.StagesStorage.GetRepoImagesBySignature(phase.Conveyor.projectName(), stageSig)
 			if err != nil {
-				return fmt.Errorf("error getting project %s stage %s images from stages storage: %s", action.Conveyor.StagesStorage.String(), stageSig, err)
+				return fmt.Errorf("error getting project %s stage %s images from stages storage: %s", phase.Conveyor.StagesStorage.String(), stageSig, err)
 			}
 
 			logboek.Debug.LogF("Images: %#v\n", originImagesDescs)
@@ -454,7 +454,7 @@ func (action *BuildAction) atomicGetImagesBySignatureFromStagesStorageWithCacheR
 		fmt.Sprintf("Storing stage %s images by signature %s into stages storage cache", stageName, stageSig),
 		logboek.LevelLogProcessOptions{},
 		func() error {
-			if err := action.Conveyor.StagesStorageCache.StoreImagesBySignature(action.Conveyor.projectName(), stageSig, originImagesDescs); err != nil {
+			if err := phase.Conveyor.StagesStorageCache.StoreImagesBySignature(phase.Conveyor.projectName(), stageSig, originImagesDescs); err != nil {
 				return fmt.Errorf("error storing stage %s images by signature %s into stages storage cache: %s", stageName, stageSig, err)
 			}
 			return nil
@@ -466,17 +466,17 @@ func (action *BuildAction) atomicGetImagesBySignatureFromStagesStorageWithCacheR
 	return originImagesDescs, nil
 }
 
-func (action *BuildAction) atomicStoreStageCache(stageName, stageSig string, imagesDescs []*image.Info) error {
-	if err := action.Conveyor.StorageLockManager.LockStageCache(action.Conveyor.projectName(), stageSig); err != nil {
+func (phase *BuildPhase) atomicStoreStageCache(stageName, stageSig string, imagesDescs []*image.Info) error {
+	if err := phase.Conveyor.StorageLockManager.LockStageCache(phase.Conveyor.projectName(), stageSig); err != nil {
 		return fmt.Errorf("error locking stage %s cache by signature %s: %s", stageName, stageSig, err)
 	}
-	defer action.Conveyor.StorageLockManager.UnlockStageCache(action.Conveyor.projectName(), stageSig)
+	defer phase.Conveyor.StorageLockManager.UnlockStageCache(phase.Conveyor.projectName(), stageSig)
 
 	return logboek.Info.LogProcess(
 		fmt.Sprintf("Storing stage %s images by signature %s into stages storage cache", stageName, stageSig),
 		logboek.LevelLogProcessOptions{},
 		func() error {
-			if err := action.Conveyor.StagesStorageCache.StoreImagesBySignature(action.Conveyor.projectName(), stageSig, imagesDescs); err != nil {
+			if err := phase.Conveyor.StagesStorageCache.StoreImagesBySignature(phase.Conveyor.projectName(), stageSig, imagesDescs); err != nil {
 				return fmt.Errorf("error storing stage %s images by signature %s into stages storage cache: %s", stageName, stageSig, err)
 			}
 			return nil
@@ -484,25 +484,25 @@ func (action *BuildAction) atomicStoreStageCache(stageName, stageSig string, ima
 	)
 }
 
-func (action *BuildAction) fetchBaseImageForStage(img *Image, stg stage.Interface) error {
+func (phase *BuildPhase) fetchBaseImageForStage(img *Image, stg stage.Interface) error {
 	if stg.Name() == "from" {
-		if err := img.FetchBaseImage(action.Conveyor); err != nil {
+		if err := img.FetchBaseImage(phase.Conveyor); err != nil {
 			return fmt.Errorf("unable to fetch base image %s for stage %s: %s", img.GetBaseImage().Name(), stg.LogDetailedName(), err)
 		}
 	} else {
-		return fetchStage(action.Conveyor.StagesStorage, action.PrevBuiltStage)
+		return fetchStage(phase.Conveyor.StagesStorage, phase.PrevBuiltStage)
 	}
 
 	return nil
 }
 
-func (action *BuildAction) prepareStage(img *Image, stg stage.Interface) error {
+func (phase *BuildPhase) prepareStage(img *Image, stg stage.Interface) error {
 	// Nothing to do if stage already exists in the stages storage
 	if stg.GetImage().GetStagesStorageImageInfo() != nil {
 		return nil
 	}
 
-	if err := action.fetchBaseImageForStage(img, stg); err != nil {
+	if err := phase.fetchBaseImageForStage(img, stg); err != nil {
 		return err
 	}
 
@@ -510,7 +510,7 @@ func (action *BuildAction) prepareStage(img *Image, stg stage.Interface) error {
 
 	serviceLabels := map[string]string{
 		imagePkg.WerfDockerImageName:     stageImage.Name(),
-		imagePkg.WerfLabel:               action.Conveyor.projectName(),
+		imagePkg.WerfLabel:               phase.Conveyor.projectName(),
 		imagePkg.WerfVersionLabel:        werf.Version,
 		imagePkg.WerfCacheVersionLabel:   imagePkg.BuildCacheVersion,
 		imagePkg.WerfImageLabel:          "false",
@@ -527,7 +527,7 @@ func (action *BuildAction) prepareStage(img *Image, stg stage.Interface) error {
 
 		stageImage.DockerfileImageBuilder().AppendBuildArgs(buildArgs...)
 
-		action.Conveyor.AppendOnTerminateFunc(func() error {
+		phase.Conveyor.AppendOnTerminateFunc(func() error {
 			return stageImage.DockerfileImageBuilder().Cleanup()
 		})
 
@@ -535,14 +535,14 @@ func (action *BuildAction) prepareStage(img *Image, stg stage.Interface) error {
 		imageServiceCommitChangeOptions := stageImage.Container().ServiceCommitChangeOptions()
 		imageServiceCommitChangeOptions.AddLabel(serviceLabels)
 
-		if action.Conveyor.sshAuthSock != "" {
+		if phase.Conveyor.sshAuthSock != "" {
 			imageRunOptions := stageImage.Container().RunOptions()
-			imageRunOptions.AddVolume(fmt.Sprintf("%s:/.werf/tmp/ssh-auth-sock", action.Conveyor.sshAuthSock))
+			imageRunOptions.AddVolume(fmt.Sprintf("%s:/.werf/tmp/ssh-auth-sock", phase.Conveyor.sshAuthSock))
 			imageRunOptions.AddEnv(map[string]string{"SSH_AUTH_SOCK": "/.werf/tmp/ssh-auth-sock"})
 		}
 	}
 
-	err := stg.PrepareImage(action.Conveyor, action.GetPrevBuiltImage(img, stg), stageImage)
+	err := stg.PrepareImage(phase.Conveyor, phase.GetPrevBuiltImage(img, stg), stageImage)
 	if err != nil {
 		return fmt.Errorf("error preparing stage %s: %s", stg.Name(), err)
 	}
@@ -550,19 +550,19 @@ func (action *BuildAction) prepareStage(img *Image, stg stage.Interface) error {
 	return nil
 }
 
-func (action *BuildAction) buildStage(img *Image, stg stage.Interface) error {
+func (phase *BuildPhase) buildStage(img *Image, stg stage.Interface) error {
 	if stg.GetImage().GetStagesStorageImageInfo() != nil {
-		if err := action.Conveyor.ContainerRuntime.RefreshImageObject(&container_runtime.DockerImage{Image: stg.GetImage()}); err != nil {
+		if err := phase.Conveyor.ContainerRuntime.RefreshImageObject(&container_runtime.DockerImage{Image: stg.GetImage()}); err != nil {
 			return fmt.Errorf("unable to refresh cached image %s state from local container runtime: %s", stg.GetImage().Name(), err)
 		}
 
 		logboek.Default.LogFHighlight("Use cache image for %s\n", stg.LogDetailedName())
 
-		logImageInfo(stg.GetImage(), action.PrevNonEmptyStageImageSize, true)
+		logImageInfo(stg.GetImage(), phase.PrevNonEmptyStageImageSize, true)
 
 		logboek.LogOptionalLn()
 
-		if action.IntrospectOptions.ImageStageShouldBeIntrospected(img.GetName(), string(stg.Name())) {
+		if phase.IntrospectOptions.ImageStageShouldBeIntrospected(img.GetName(), string(stg.Name())) {
 			if err := introspectStage(stg); err != nil {
 				return err
 			}
@@ -584,7 +584,7 @@ func (action *BuildAction) buildStage(img *Image, stg stage.Interface) error {
 			})
 			return
 		}
-		logImageInfo(stg.GetImage(), action.PrevNonEmptyStageImageSize, false)
+		logImageInfo(stg.GetImage(), phase.PrevNonEmptyStageImageSize, false)
 	}
 
 	if err := logboek.Default.LogProcess(
@@ -594,17 +594,17 @@ func (action *BuildAction) buildStage(img *Image, stg stage.Interface) error {
 			Style:           logboek.HighlightStyle(),
 		},
 		func() (err error) {
-			if err := stg.PreRunHook(action.Conveyor); err != nil {
+			if err := stg.PreRunHook(phase.Conveyor); err != nil {
 				return fmt.Errorf("%s preRunHook failed: %s", stg.LogDetailedName(), err)
 			}
 
-			return action.atomicBuildStageImage(img, stg)
+			return phase.atomicBuildStageImage(img, stg)
 		},
 	); err != nil {
 		return err
 	}
 
-	if action.IntrospectOptions.ImageStageShouldBeIntrospected(img.GetName(), string(stg.Name())) {
+	if phase.IntrospectOptions.ImageStageShouldBeIntrospected(img.GetName(), string(stg.Name())) {
 		if err := introspectStage(stg); err != nil {
 			return err
 		}
@@ -613,11 +613,11 @@ func (action *BuildAction) buildStage(img *Image, stg stage.Interface) error {
 	return nil
 }
 
-func (action *BuildAction) atomicBuildStageImage(img *Image, stg stage.Interface) error {
+func (phase *BuildPhase) atomicBuildStageImage(img *Image, stg stage.Interface) error {
 	stageImage := stg.GetImage()
 
 	if err := logboek.WithTag(fmt.Sprintf("%s/%s", img.LogName(), stg.Name()), img.LogTagStyle(), func() error {
-		if err := stageImage.Build(action.ImageBuildOptions); err != nil {
+		if err := stageImage.Build(phase.ImageBuildOptions); err != nil {
 			return err
 		}
 		return nil
@@ -625,12 +625,12 @@ func (action *BuildAction) atomicBuildStageImage(img *Image, stg stage.Interface
 		return fmt.Errorf("failed to build image for stage %s with signature %s: %s", stg.Name(), stg.GetSignature(), err)
 	}
 
-	if err := action.Conveyor.StorageLockManager.LockStage(action.Conveyor.projectName(), stg.GetSignature()); err != nil {
-		return fmt.Errorf("unable to lock project %s signature %s: %s", action.Conveyor.projectName(), stg.GetSignature(), err)
+	if err := phase.Conveyor.StorageLockManager.LockStage(phase.Conveyor.projectName(), stg.GetSignature()); err != nil {
+		return fmt.Errorf("unable to lock project %s signature %s: %s", phase.Conveyor.projectName(), stg.GetSignature(), err)
 	}
-	defer action.Conveyor.StorageLockManager.UnlockStage(action.Conveyor.projectName(), stg.GetSignature())
+	defer phase.Conveyor.StorageLockManager.UnlockStage(phase.Conveyor.projectName(), stg.GetSignature())
 
-	imagesDescs, err := action.atomicGetImagesBySignatureFromStagesStorageWithCacheReset(string(stg.Name()), stg.GetSignature())
+	imagesDescs, err := phase.atomicGetImagesBySignatureFromStagesStorageWithCacheReset(string(stg.Name()), stg.GetSignature())
 	if err != nil {
 		return err
 	}
@@ -653,7 +653,7 @@ func (action *BuildAction) atomicBuildStageImage(img *Image, stg stage.Interface
 				"Discarding newly built image for stage %s by signature %s: detected already existing image %s in the stages storage\n",
 				stg.Name(), stg.GetSignature(), imgInfo.Name,
 			)
-			i := action.Conveyor.GetOrCreateStageImage(action.GetPrevImage(img, stg).(*container_runtime.StageImage), imgInfo.Name)
+			i := phase.Conveyor.GetOrCreateStageImage(phase.GetPrevImage(img, stg).(*container_runtime.StageImage), imgInfo.Name)
 			i.SetStagesStorageImageInfo(imgInfo)
 			stg.SetImage(i)
 
@@ -661,11 +661,11 @@ func (action *BuildAction) atomicBuildStageImage(img *Image, stg stage.Interface
 		}
 	}
 
-	newStageImageName, uniqueID := action.generateUniqueImageName(stg.GetSignature(), imagesDescs)
+	newStageImageName, uniqueID := phase.generateUniqueImageName(stg.GetSignature(), imagesDescs)
 	repository, tag := image.ParseRepositoryAndTag(newStageImageName)
 
-	stageImageObj := action.Conveyor.GetStageImage(stageImage.Name())
-	action.Conveyor.UnsetStageImage(stageImageObj.Name())
+	stageImageObj := phase.Conveyor.GetStageImage(stageImage.Name())
+	phase.Conveyor.UnsetStageImage(stageImageObj.Name())
 
 	stageImageObj.SetName(newStageImageName)
 	stageImageObj.GetStagesStorageImageInfo().Name = newStageImageName
@@ -674,14 +674,14 @@ func (action *BuildAction) atomicBuildStageImage(img *Image, stg stage.Interface
 	stageImageObj.GetStagesStorageImageInfo().Signature = stg.GetSignature()
 	stageImageObj.GetStagesStorageImageInfo().UniqueID = uniqueID
 
-	action.Conveyor.SetStageImage(stageImageObj)
+	phase.Conveyor.SetStageImage(stageImageObj)
 
 	if err := logboek.Default.LogProcess(
 		fmt.Sprintf("Store into stages storage"),
 		logboek.LevelLogProcessOptions{},
 		func() error {
-			if err := action.Conveyor.StagesStorage.StoreImage(&container_runtime.DockerImage{Image: stageImage}); err != nil {
-				return fmt.Errorf("unable to store stage %s signature %s image %s into stages storage %s: %s", stg.LogDetailedName(), stg.GetSignature(), stageImage.Name(), action.Conveyor.StagesStorage.String(), err)
+			if err := phase.Conveyor.StagesStorage.StoreImage(&container_runtime.DockerImage{Image: stageImage}); err != nil {
+				return fmt.Errorf("unable to store stage %s signature %s image %s into stages storage %s: %s", stg.LogDetailedName(), stg.GetSignature(), stageImage.Name(), phase.Conveyor.StagesStorage.String(), err)
 			}
 			return nil
 		},
@@ -690,17 +690,17 @@ func (action *BuildAction) atomicBuildStageImage(img *Image, stg stage.Interface
 	}
 
 	imagesDescs = append(imagesDescs, stageImage.GetStagesStorageImageInfo())
-	return action.atomicStoreStageCache(string(stg.Name()), stg.GetSignature(), imagesDescs)
+	return phase.atomicStoreStageCache(string(stg.Name()), stg.GetSignature(), imagesDescs)
 }
 
-func (action *BuildAction) generateUniqueImageName(signature string, imagesDescs []*image.Info) (string, string) {
+func (phase *BuildPhase) generateUniqueImageName(signature string, imagesDescs []*image.Info) (string, string) {
 	var imageName string
 
 	for {
 		timeNow := time.Now().UTC()
 		timeNowMicroseconds := timeNow.Unix()*1000 + int64(timeNow.Nanosecond()/1000000)
 		uniqueID := fmt.Sprintf("%d", timeNowMicroseconds)
-		imageName = action.Conveyor.StagesStorage.ConstructStageImageName(action.Conveyor.projectName(), signature, uniqueID)
+		imageName = phase.Conveyor.StagesStorage.ConstructStageImageName(phase.Conveyor.projectName(), signature, uniqueID)
 
 		for _, imgInfo := range imagesDescs {
 			if imgInfo.Name == imageName {
