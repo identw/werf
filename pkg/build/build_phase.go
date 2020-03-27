@@ -108,16 +108,31 @@ func (phase *BuildPhase) OnImageStage(img *Image, stg stage.Interface) error {
 
 	// Stage is cached in the stages storage
 	if stg.GetImage().GetStagesStorageImageInfo() != nil {
-		// will build some stage based on this stage => refresh image info
-		fmt.Printf("!!! %s\n", stg.LogDetailedName())
+		// Will build some stage based on this stage => refresh image info
 		if stg.GetNextNonEmptyStage() != nil && stg.GetNextNonEmptyStage().GetImage().GetStagesStorageImageInfo() == nil {
-			fmt.Printf("!!!! stg=%v GetNextStage=%v\n", stg.LogDetailedName(), stg.GetNextStage())
-			fmt.Printf("!!!! stg=%v GetNextNonEmptyStage=%v\n", stg.LogDetailedName(), stg.GetNextNonEmptyStage())
-			fmt.Printf("!!!! stg=%v GetNextNonEmptyStage.LogDetailedName=%v\n", stg.LogDetailedName(), stg.GetNextNonEmptyStage().LogDetailedName())
 			if freshImgInfo, err := phase.Conveyor.StagesStorage.GetImageInfo(phase.Conveyor.projectName(), stg.GetImage().GetStagesStorageImageInfo().Signature, stg.GetImage().GetStagesStorageImageInfo().UniqueID); err != nil {
 				return err
 			} else if freshImgInfo == nil {
-				fmt.Printf("ACHTUNG!\n")
+				// Reset stages storage cache for this stage
+				logboek.Info.LogF("Stages storage cache for %s signature %s is not valid: resetting stages storage cache\n")
+
+				panic("no")
+				//imagesDescs, err := atomicGetImagesBySignatureFromStagesStorageWithCacheReset(phase.Conveyor, stg.LogDetailedName(), stg.GetSignature())
+				//if err != nil {
+				//	return err
+				//}
+				//
+				//if imgInfo, err := selectSuitableStagesStorageImage(stg, imagesDescs); err != nil {
+				//	return err
+				//} else if imgInfo != nil {
+				//	i := phase.Conveyor.GetOrCreateStageImage(stg.GetPrevImage().(*container_runtime.StageImage), imgInfo.Name)
+				//	i.SetStagesStorageImageInfo(imgInfo)
+				//	stg.SetImage(i)
+				//} else {
+				//	// Will build a new image
+				//	i := phase.Conveyor.GetOrCreateStageImage(stg.GetPrevImage().(*container_runtime.StageImage), uuid.New().String())
+				//	stg.SetImage(i)
+				//}
 			}
 		}
 

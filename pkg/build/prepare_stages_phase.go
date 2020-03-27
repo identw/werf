@@ -120,12 +120,10 @@ func (phase *PrepareStagesPhase) setStageLinks(img *Image, stg stage.Interface, 
 		prevStage := stg.GetPrevStage()
 		for prevStage != nil {
 			prevStage.SetNextNonEmptyStage(stg)
-
 			// Links before previous non empty stage should already be set, so exit
 			if stg.GetPrevNonEmptyStage() == prevStage {
 				break
 			}
-
 			prevStage = prevStage.GetPrevStage()
 		}
 	}
@@ -133,6 +131,10 @@ func (phase *PrepareStagesPhase) setStageLinks(img *Image, stg stage.Interface, 
 
 func (phase *PrepareStagesPhase) onImageStage(img *Image, stg stage.Interface, isEmpty bool) error {
 	phase.setStageLinks(img, stg, isEmpty)
+
+	if isEmpty {
+		return nil
+	}
 
 	stageDependencies, err := stg.GetDependencies(phase.Conveyor, phase.StagesIterator.GetPrevImage(img, stg), phase.StagesIterator.GetPrevBuiltImage(img, stg))
 	if err != nil {

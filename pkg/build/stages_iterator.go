@@ -51,10 +51,8 @@ func (iterator *StagesIterator) OnImageStage(img *Image, stg stage.Interface, on
 		}
 	}
 
-	if !isEmpty {
-		if err := onImageStageFunc(img, stg, isEmpty); err != nil {
-			return err
-		}
+	if err := onImageStageFunc(img, stg, isEmpty); err != nil {
+		return err
 	}
 
 	iterator.PrevStage = stg
