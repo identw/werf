@@ -59,10 +59,11 @@ type CmdData struct {
 	ImagesRepo     *string
 	ImagesRepoMode *string
 
-	DockerConfig          *string
-	InsecureRegistry      *bool
-	SkipTlsVerifyRegistry *bool
-	DryRun                *bool
+	DockerConfig              *string
+	InsecureRegistry          *bool
+	SkipTlsVerifyRegistry     *bool
+	DryRun                    *bool
+	SkipCheckBuiltStagesCache *bool
 
 	GitTagStrategyLimit         *int64
 	GitTagStrategyExpiryDays    *int64
@@ -330,6 +331,11 @@ func SetupSkipTlsVerifyRegistry(cmdData *CmdData, cmd *cobra.Command) {
 func SetupDryRun(cmdData *CmdData, cmd *cobra.Command) {
 	cmdData.DryRun = new(bool)
 	cmd.Flags().BoolVarP(cmdData.DryRun, "dry-run", "", false, "Indicate what the command would do without actually doing that")
+}
+
+func SetupSkipCheckBuiltStagesCache(cmdData *CmdData, cmd *cobra.Command) {
+	cmdData.SkipCheckBuiltStagesCache = new(bool)
+	cmd.Flags().BoolVarP(cmdData.SkipCheckBuiltStagesCache, "skip-check-built-stages-cache", "", false, "Skip ckeck built stages cache (default false)")
 }
 
 func SetupDockerConfig(cmdData *CmdData, cmd *cobra.Command, extraDesc string) {

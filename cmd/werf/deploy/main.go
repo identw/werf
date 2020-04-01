@@ -75,6 +75,7 @@ Read more info about Helm chart structure, Helm Release name, Kubernetes Namespa
 	common.SetupTag(&CommonCmdData, cmd)
 	common.SetupEnvironment(&CommonCmdData, cmd)
 	common.SetupRelease(&CommonCmdData, cmd)
+	common.SetupSkipCheckBuiltStagesCache(&CommonCmdData, cmd)
 	common.SetupNamespace(&CommonCmdData, cmd)
 	common.SetupAddAnnotations(&CommonCmdData, cmd)
 	common.SetupAddLabels(&CommonCmdData, cmd)
@@ -223,12 +224,14 @@ func runDeploy() error {
 				logboek.LogErrorF("WARNING: ssh agent termination failed: %s\n", err)
 			}
 		}()
-
+		
 		c := build.NewConveyor(werfConfig, []string{}, projectDir, projectTmpDir, ssh_agent.SSHAuthSock)
 		defer c.Terminate()
-
-		if err = c.ShouldBeBuilt(); err != nil {
-			return err
+		
+		if (!*CommonCmdData.SkipCheckBuiltStagesCache) {
+			if err = c.ShouldBeBuilt(); err != nil {
+				return err
+			}
 		}
 	}
 
