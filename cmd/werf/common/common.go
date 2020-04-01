@@ -77,10 +77,11 @@ type CmdData struct {
 	GitUnshallow              *bool
 	AllowGitShallowClone      *bool
 
-	DockerConfig          *string
-	InsecureRegistry      *bool
-	SkipTlsVerifyRegistry *bool
-	DryRun                *bool
+	DockerConfig              *string
+	InsecureRegistry          *bool
+	SkipTlsVerifyRegistry     *bool
+	DryRun                    *bool
+	SkipCheckBuiltStagesCache *bool
 
 	GitTagStrategyLimit               *int64
 	GitTagStrategyExpiryDays          *int64
@@ -509,6 +510,11 @@ func SetupSkipTlsVerifyRegistry(cmdData *CmdData, cmd *cobra.Command) {
 func SetupDryRun(cmdData *CmdData, cmd *cobra.Command) {
 	cmdData.DryRun = new(bool)
 	cmd.Flags().BoolVarP(cmdData.DryRun, "dry-run", "", GetBoolEnvironmentDefaultFalse("WERF_DRY_RUN"), "Indicate what the command would do without actually doing that (default $WERF_DRY_RUN)")
+}
+
+func SetupSkipCheckBuiltStagesCache(cmdData *CmdData, cmd *cobra.Command) {
+	cmdData.SkipCheckBuiltStagesCache = new(bool)
+	cmd.Flags().BoolVarP(cmdData.SkipCheckBuiltStagesCache, "skip-check-built-stages-cache", "", GetBoolEnvironmentDefaultFalse("WERF_SKIP_CHECK_BUILT_STAGES_CACHE"), "Skip ckeck built stages cache (default $WERF_SKIP_CHECK_BUILT_STAGES_CACHE)")
 }
 
 func SetupDockerConfig(cmdData *CmdData, cmd *cobra.Command, extraDesc string) {

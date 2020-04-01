@@ -122,6 +122,7 @@ Read more info about Helm chart structure, Helm Release name, Kubernetes Namespa
 
 	common.SetupGitUnshallow(&commonCmdData, cmd)
 	common.SetupAllowGitShallowClone(&commonCmdData, cmd)
+	common.SetupSkipCheckBuiltStagesCache(&commonCmdData, cmd)
 
 	cmd.Flags().IntVarP(&cmdData.Timeout, "timeout", "t", 0, "Resources tracking timeout in seconds")
 
@@ -271,8 +272,10 @@ func runDeploy() error {
 		defer conveyorWithRetry.Terminate()
 
 		if err := conveyorWithRetry.WithRetryBlock(func(c *build.Conveyor) error {
-			if err := c.ShouldBeBuilt(build.ShouldBeBuiltOptions{}); err != nil {
-				return err
+			if (!*commonCmdData.SkipCheckBuiltStagesCache) {
+				if err := c.ShouldBeBuilt(build.ShouldBeBuiltOptions{}); err != nil {
+					return err
+				}
 			}
 
 			imagesInfoGetters = c.GetImageInfoGetters(werfConfig.StapelImages, werfConfig.ImagesFromDockerfile, tag, tagStrategy, false)
